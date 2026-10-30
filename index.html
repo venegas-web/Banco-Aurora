@@ -170,7 +170,7 @@ const bal=u=>u.cur==='USD'?`$${(u.balance/FX).toLocaleString('es-MX',{minimumFra
 const sign=t=>CREDIT.includes(t.kind)?'<span class="pos">+':'<span class="neg">−';
 const unread=()=>db.alerts.filter(a=>a.uid===me.id&&!a.seen).length;
 function auth(mode,msg=''){
-  const reg=mode==='reg';
+  stopCam();const reg=mode==='reg';
   A.innerHTML=`<div class="auth"><section class="hero"><div class="logo">AURORA</div><h1>${reg?'Abre tu cuenta en minutos.':'Control claro. Finanzas bajo tu mirada.'}</h1>
   <ul class="feat"><li>Tarjeta de débito ligada a tu cuenta</li><li>Alertas por cada movimiento</li><li>Transferencias, ahorro e inversión simulados</li></ul>
   <div class="float" aria-hidden="true"><span class="serif" style="letter-spacing:.3em">AURORA</span><span style="font-size:1.15rem;letter-spacing:.14em">5120 •••• •••• 0000</span><span>TITULAR · 12/30</span></div></section>
@@ -185,10 +185,10 @@ function auth(mode,msg=''){
     try{if(reg){const u=await createUser($('#n').value,$('#u').value,$('#p').value,money($('#i').value||0));log(u.id,'Cuenta creada','Registro web');auth('login','Cuenta creada. Ya puedes entrar con tu usuario y NIP.')}
         else{me=await login($('#id').value,$('#p').value);view='home';flash='';shell()}}catch(x){er.textContent=x.message;const p=$('#p');if(p)p.value=''}};
 }
-const NAV=[['home','Resumen'],['transfer','Transferir'],['cash','Depósitos y retiros'],['moves','Movimientos'],['query','Consulta de saldo'],['alerts','Alertas'],['reports','Reportes de gastos'],['savings','Ahorro y presupuesto'],['invest','Cuenta de inversión'],['pay','Pagar servicios'],['joint','Cuentas conjuntas'],['cards','Tarjetas vinculadas'],['sched','Transferencias programadas'],['cashback','Cashback'],['fx','Cambio MXN / USD'],['tickets','Tickets y exportación'],['logs','Historial de accesos'],['voice','Comando de voz'],['chat','Atención al cliente'],['profile','Perfil y seguridad']];
+const NAV=[['home','Resumen'],['transfer','Transferir'],['cash','Depósitos y retiros'],['moves','Movimientos'],['query','Consulta de saldo'],['alerts','Alertas'],['reports','Reportes de gastos'],['savings','Ahorro y presupuesto'],['invest','Cuenta de inversión'],['pay','Pagar servicios'],['joint','Cuentas conjuntas'],['cards','Tarjetas vinculadas'],['sched','Transferencias programadas'],['cashback','Cashback'],['fx','Cambio MXN / USD'],['tickets','Tickets y exportación'],['logs','Historial de accesos'],['voice','Comando de voz'],['vision','Visión artificial'],['chat','Atención al cliente'],['profile','Perfil y seguridad']];
 function go(v,f=''){view=v;flash=f;shell()}
 function shell(){
-  me=db.users.find(x=>x.id===me.id);runSched(me);const n=unread();
+  stopCam();me=db.users.find(x=>x.id===me.id);runSched(me);const n=unread();
   A.innerHTML=`<div class="shell"><nav class="side" aria-label="Menú"><div class="logo">AURORA</div>${NAV.map(([k,t])=>`<button data-v="${k}" class="${k===view?'on':''}">${t}${k==='alerts'&&n?` (${n})`:''}</button>`).join('')}<span class="grow"></span><button id="out">Cerrar sesión</button></nav><main class="main" id="m"></main></div>`;
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>go(b.dataset.v));
   $('#out').onclick=()=>{log(me.id,'Cierre de sesión','Sesión cerrada');me=null;auth('login')};
@@ -214,7 +214,7 @@ const views={
  pay:()=>head('Pagar servicios','Pago de servicio simulado.')+formHtml(field('s','Servicio','select',['Agua','TV','Teléfono','Internet','Electricidad'])+field('r','Referencia del servicio')+field('a','Importe MXN','text','inputmode="decimal"'),'Registrar pago'),
  cashback:()=>head('Cashback','Calcula tu cashback del 1% o 2%.')+formHtml(field('a','Importe de compra MXN','text','inputmode="decimal"')+field('t','Porcentaje','select',['1%','2%']),'Calcular y registrar'),
  fx:()=>head('Cambio MXN / USD','Tipo de cambio de ejemplo ($'+FX+' MXN por USD), no es cotización en tiempo real.')+formHtml(field('a','Cantidad','text','inputmode="decimal" value="100"')+field('k','Conversión','select',['MXN a USD','USD a MXN']),'Convertir')+'<div class="card" id="res" style="max-width:480px">Resultado: —</div>',
- profile:()=>head('Perfil y seguridad','Usuario: '+esc(me.username)+' · Cuenta: '+esc(me.account))+formHtml(field('l','Límite diario MXN','text','inputmode="decimal" value="'+(me.limit||10000)+'"')+field('cu','Moneda principal','select',['MXN','USD'])+field('o','NIP actual (solo para cambiarlo)','password','inputmode="numeric"')+field('n','Nuevo NIP (opcional)','password','inputmode="numeric"')+field('so','Sonido del teclado','select',['Activado','Desactivado'])+field('vo','Comandos de voz','select',['Desactivado','Activado']),'Guardar perfil')
+ profile:()=>head('Perfil y seguridad','Usuario: '+esc(me.username)+' · Cuenta: '+esc(me.account))+formHtml(field('l','Límite diario MXN','text','inputmode="decimal" value="'+(me.limit||10000)+'"')+field('cu','Moneda principal','select',['MXN','USD'])+field('o','NIP actual (solo para cambiarlo)','password','inputmode="numeric"')+field('n','Nuevo NIP (opcional)','password','inputmode="numeric"')+field('so','Sonido del teclado','select',['Activado','Desactivado'])+field('vo','Comandos de voz','select',['Desactivado','Activado'])+field('fa','Visión artificial (cámara)','select',['Desactivado','Activado']),'Guardar perfil')
 };
 const wire={
  home:m=>m.querySelectorAll('[data-v2]').forEach(b=>b.onclick=e=>{e.preventDefault();go(b.dataset.v2)}),
@@ -232,9 +232,9 @@ const wire={
    if(c<=0)throw new Error('El importe es muy pequeño para generar cashback.');if(!confirm(`Cashback: ${peso(c)}. ¿Registrarlo en la cuenta demo?`))return;addTx(me,'Cashback',c,`Cashback ${$('#t').value} sobre compra ${peso(a)}`);go('home','Cashback registrado: '+peso(c)+'.')}),
  fx:onForm(()=>{const a=money($('#a').value);if(a<0)throw new Error('La cantidad no puede ser negativa.');const m=$('#k').value==='MXN a USD';
    $('#res').textContent='Resultado: '+(m?a/FX:a*FX).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+(m?' USD':' MXN')}),
- profile:m=>{$('#cu').value=me.cur||'MXN';$('#so').value=me.sound===false?'Desactivado':'Activado';$('#vo').value=me.voice?'Activado':'Desactivado';onForm(async()=>{const l=money($('#l').value);if(l<=0)throw new Error('El límite debe ser positivo.');
+ profile:m=>{$('#cu').value=me.cur||'MXN';$('#so').value=me.sound===false?'Desactivado':'Activado';$('#vo').value=me.voice?'Activado':'Desactivado';$('#fa').value=me.face?'Activado':'Desactivado';onForm(async()=>{const l=money($('#l').value);if(l<=0)throw new Error('El límite debe ser positivo.');
    const nn=$('#n').value;if(nn){const pp=pinProblem(nn);if(pp)throw new Error(pp);if(await hashPin($('#o').value,me.salt)!==me.pinhash)throw new Error('NIP actual incorrecto.');me.salt=digits(16);me.pinhash=await hashPin(nn,me.salt);log(me.id,'NIP cambiado','Cambio realizado')}
-   me.limit=l;me.cur=$('#cu').value;me.sound=$('#so').value==='Activado';me.voice=$('#vo').value==='Activado';save();log(me.id,'Perfil actualizado','Preferencias guardadas');go('profile','Perfil guardado.')})(m)}
+   me.limit=l;me.cur=$('#cu').value;me.sound=$('#so').value==='Activado';me.voice=$('#vo').value==='Activado';me.face=$('#fa').value==='Activado';save();log(me.id,'Perfil actualizado','Preferencias guardadas');go('profile','Perfil guardado.')})(m)}
 };
 /* ===== Módulos adicionales ===== */
 const EXPENSES=['Retiro','Transferencia enviada','Pago de servicio','Inversión','Ahorro apartado','Comisión por consulta'],RATES={Conservadora:.05,Equilibrada:.09,Crecimiento:.13};
@@ -288,6 +288,26 @@ Object.assign(wire,{
   else a='Prueba preguntar por saldo, transferencia, NIP, ahorro, inversión, comisiones, tarjetas o servicios.';
   const c=$('#cb');c.insertAdjacentHTML('beforeend',`<p><b>Tú:</b> ${esc(q)}<br><b>Aurora:</b> ${esc(a)}</p>`);c.scrollTop=c.scrollHeight;$('#q').value='';log(me.id,'Chatbot',q.slice(0,150))}}
 });
+/* ===== Visión artificial (solo detecta rostros; el video no se guarda ni se envía) ===== */
+const cam={stream:null,video:null,raf:0,found:false};
+function stopCam(){if(cam.raf&&window.cancelAnimationFrame)cancelAnimationFrame(cam.raf);cam.raf=0;if(cam.stream)cam.stream.getTracks().forEach(t=>t.stop());cam.stream=null;cam.video=null}
+let detP=null;
+function getDetector(){return detP||(detP=(async()=>{
+  if(window.FaceDetector){try{const d=new FaceDetector({fastMode:true,maxDetectedFaces:3});return{detect:async v=>(await d.detect(v)).map(f=>({x:f.boundingBox.x,y:f.boundingBox.y,w:f.boundingBox.width,h:f.boundingBox.height}))}}catch{}}
+  try{const V='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14',M=await import(V+'/vision_bundle.mjs'),fs=await M.FilesetResolver.forVisionTasks(V+'/wasm');
+    const d=await M.FaceDetector.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'});
+    return{detect:async v=>d.detectForVideo(v,performance.now()).detections.map(x=>({x:x.boundingBox.originX,y:x.boundingBox.originY,w:x.boundingBox.width,h:x.boundingBox.height}))}}
+  catch{detP=null;throw new Error('No se pudo cargar el detector de rostros. Revisa tu conexión a internet o prueba en Chrome.')}})())}
+views.vision=()=>head('Visión artificial','Seguridad: detecta si hay un rostro frente a la cámara. Solo detecta rostros, no identifica personas. El video no se guarda ni se envía a ningún servidor.')+`<div class="card" style="max-width:520px">${me.face?'<canvas id="cv" width="640" height="480" style="width:100%;border-radius:8px;background:#0B1F3A"></canvas><button class="btn gold" id="cam">Iniciar cámara</button><button class="btn ghost" id="camx" hidden>Detener y registrar resultado</button>':'<p class="sub">Activa primero la opción de visión artificial en Perfil y seguridad.</p>'}<div class="err" id="vs" role="alert"></div></div>`;
+wire.vision=()=>{if(!me.face)return;const st=$('#vs'),cv=$('#cv'),ctx=cv.getContext('2d');
+  $('#cam').onclick=async()=>{try{st.textContent='';if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Tu navegador no permite usar la cámara aquí. Abre la página con https.');
+    const det=await getDetector();cam.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    const v=cam.video=document.createElement('video');v.muted=true;v.playsInline=true;v.srcObject=cam.stream;await v.play();cam.found=false;$('#cam').hidden=true;$('#camx').hidden=false;
+    const loop=async()=>{if(!cam.stream)return;if(v.videoWidth){cv.width=v.videoWidth;cv.height=v.videoHeight;ctx.drawImage(v,0,0);let b=[];try{b=await det.detect(v)}catch{st.textContent='El detector no pudo analizar el video.'}
+      if(cam.stream){ctx.strokeStyle='#28B478';ctx.lineWidth=4;b.forEach(r=>{ctx.strokeRect(r.x,r.y,r.w,r.h);cam.found=true})}}
+      if(cam.stream)cam.raf=requestAnimationFrame(loop)};loop()}
+   catch(e){stopCam();st.textContent=e.name==='NotAllowedError'?'Permiso de cámara denegado.':e.message}};
+  $('#camx').onclick=()=>{const f=cam.found;stopCam();log(me.id,'Visión artificial',f?'Rostro detectado':'Sin detección');go('vision',f?'Resultado: se detectó un rostro.':'Resultado: no se detectó un rostro.')}};
 (async()=>{
   if(!db.users.length){try{const u=await createUser('Usuario Demo','demo','1234',25000,true);log(u.id,'Sistema','Cuenta de demostración creada')}catch(e){console.error(e)}}
   auth('login');
