@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banco Aurora | Simulador</title>
+<style>
+:root{--bg:#F4F1E9;--card:#fff;--ink:#17191E;--gold:#B28A35;--gold-l:#E8D7A8;--muted:#6B6E75;--green:#247A58;--red:#A83232;--line:#E2DED4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+button,input{font:inherit}
+.wrap{max-width:460px;margin:0 auto;padding:20px 16px 40px}
+.brand{background:var(--ink);color:var(--gold-l);padding:28px 20px 22px}
+.brand b{display:block;font-size:1.7rem;letter-spacing:.35em}
+.brand span{color:#C6C8CD;font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--line);padding:20px;margin-top:16px}
+h1{font-size:1.4rem;margin:0 0 4px}
+p.sub{color:var(--muted);margin:0 0 12px;font-size:.95rem}
+label{display:block;font-weight:600;font-size:.9rem;margin:14px 0 4px}
+input{width:100%;padding:12px;border:1px solid var(--line);background:#FBFAF6;color:var(--ink);border-radius:0}
+input:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.hint{font-size:.85rem;color:var(--muted);margin-top:4px}
+.btn{display:block;width:100%;margin-top:18px;padding:13px;border:0;background:var(--gold);color:var(--ink);font-weight:700;cursor:pointer}
+.btn.dark{background:var(--ink);color:#fff;font-weight:400;margin-top:10px}
+.err{color:var(--red);font-size:.92rem;margin-top:12px;min-height:1.3em}
+.balance{font-size:2rem;font-weight:700;color:var(--gold);margin:4px 0}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.row:last-child{border-bottom:0}.row small{color:var(--muted);display:block}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.top button{width:auto;margin:0;padding:8px 14px}
+.foot{text-align:center;color:var(--muted);font-size:.8rem;margin-top:24px}
+@media(min-width:700px){.wrap{max-width:560px}}
+@media(prefers-reduced-motion:no-preference){.card{animation:in .25s ease-out}@keyframes in{from{opacity:0}to{opacity:1}}}
+</style>
+</head>
+<body>
+<header class="brand"><b>AURORA</b><span>Banca digital · simulador educativo, sin dinero real</span></header>
+<main class="wrap" id="app" aria-live="polite"></main>
+<script>
+/* ===== Lógica (misma que la versión de escritorio) ===== */
+const KEY='aurora_web_v1', MAX_ATTEMPTS=3, LOCK_MIN=15;
+const WEAK=['1234','4321','0000','2580','1122','6969','1004','2000','2020'];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const peso=n=>n.toLocaleString('es-MX',{style:'currency',currency:'MXN'})+' MXN';
+const now=()=>new Date().toLocaleString('es-MX');
+const digits=n=>{const a=new Uint32Array(n);crypto.getRandomValues(a);return [...a].map(x=>x%10).join('')};
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+
+function pinProblem(p,allowWeak){
+  if(!/^\d{4,}$/.test(p))return 'El NIP debe tener al menos 4 dígitos (solo números).';
+  if(allowWeak)return null;
+  if(WEAK.includes(p))return 'Ese NIP es demasiado común (por ejemplo 1234). Elige otro.';
+  for(let k=1;k<=p.length/2;k++)if(p.length%k===0&&p===p.slice(0,k).repeat(p.length/k))return 'No uses NIP repetidos como 0000, 1212 o 123123.';
+  const d=[...p].slice(1).map((c,i)=>(+c-+p[i]+10)%10);
+  if(d.every(x=>x===1)||d.every(x=>x===9))return 'No uses secuencias como 1234, 4321 o 7890.';
+  return null;
+}
+function luhnOk(n){let t=0;[...n].reverse().forEach((c,i)=>{let d=+c;if(i%2){d*=2;if(d>9)d-=9}t+=d});return t%10===0}
+function newCardNumber(){const p='5'+digits(14);for(let d=0;d<10;d++)if(luhnOk(p+d))return p+d}
+
+function sha256(msg){ // respaldo para navegadores sin crypto.subtle (p. ej. abrir por http sin localhost)
+  const rr=(x,n)=>(x>>>n)|(x<<(32-n)),K=[],H=[];let p=0;
+  for(let n=2;p<64;n++){let ok=true;for(let d=2;d*d<=n;d++)if(n%d===0){ok=false;break}
+    if(ok){if(p<8)H[p]=(Math.pow(n,.5)%1)*4294967296|0;K[p++]=(Math.pow(n,1/3)%1)*4294967296|0}}
+  const b=[...new TextEncoder().encode(msg)],l=b.length*8;b.push(128);while(b.length%64!==56)b.push(0);
+  for(let i=7;i>=0;i--)b.push(i>3?0:(l>>>(i*8))&255);
+  const w=new Array(64);
+  for(let o=0;o<b.length;o+=64){
+    for(let i=0;i<16;i++)w[i]=(b[o+4*i]<<24)|(b[o+4*i+1]<<16)|(b[o+4*i+2]<<8)|b[o+4*i+3];
+    for(let i=16;i<64;i++){const s0=rr(w[i-15],7)^rr(w[i-15],18)^(w[i-15]>>>3),s1=rr(w[i-2],17)^rr(w[i-2],19)^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0}
+    let [a,bb,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){const t1=(h+(rr(e,6)^rr(e,11)^rr(e,25))+((e&f)^(~e&g))+K[i]+w[i])|0,t2=((rr(a,2)^rr(a,13)^rr(a,22))+((a&bb)^(a&c)^(bb&c)))|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=bb;bb=a;a=(t1+t2)|0}
+    [a,bb,c,d,e,f,g,h].forEach((v,i)=>H[i]=(H[i]+v)|0);
+  }
+  return H.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
+}
+async function hashPin(pin,salt){
+  if(window.crypto&&crypto.subtle){
+    const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits']);
+    return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(salt),iterations:140000,hash:'SHA-256'},k,256));
+  }
+  let h=pin+salt;for(let i=0;i<2000;i++)h=sha256(h+pin);return h;
+}
+//--UI--
+/* ===== Datos: se guardan en este navegador (sin servidor) ===== */
+const empty=()=>({users:[],tx:[],logs:[]});
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||empty()}catch{return empty()}}
+let db=load(),storageOk=true;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch{storageOk=false}}
+const log=(uid,action,detail)=>{db.logs.push({uid,action,detail,at:now()});save()};
+
+async function createUser(name,username,pin,initial,allowWeak){
+  name=name.trim();username=username.trim();
+  if(!name||!username)throw new Error('El nombre y el usuario son obligatorios.');
+  const pp=pinProblem(pin,allowWeak);if(pp)throw new Error(pp);
+  if(!isFinite(initial)||initial<0)throw new Error('El saldo inicial debe ser un número válido, mayor o igual a cero.');
+  if(db.users.some(u=>u.username.toLowerCase()===username.toLowerCase()))throw new Error('Ese nombre de usuario ya existe.');
+  const salt=digits(16),num=newCardNumber(),d=new Date();
+  const u={id:Date.now()+Math.floor(Math.random()*1000),name,username,account:'AU'+digits(10),clabe:'646'+digits(15),salt,pinhash:await hashPin(pin,salt),
+    balance:0,fails:0,lockedUntil:0,blocked:false,
+    card:{kind:'Débito',last4:num.slice(-4),holder:name.toUpperCase(),expiry:String(d.getMonth()+1).padStart(2,'0')+'/'+String((d.getFullYear()+4)%100).padStart(2,'0')}}; // solo se guardan los últimos 4 dígitos
+  db.users.push(u);
+  if(initial>0){u.balance=initial;db.tx.push({uid:u.id,kind:'Depósito inicial',amount:initial,detail:'Saldo inicial de demostración',at:now()})}
+  save();return u;
+}
+async function login(id,pin){
+  id=id.trim();const u=db.users.find(x=>x.username.toLowerCase()===id.toLowerCase()||x.account===id||x.clabe===id);
+  if(!u)throw new Error('Verifica tus datos. La cuenta demo usa usuario demo y NIP 1234.');
+  if(u.lockedUntil>Date.now()){log(u.id,'Acceso rechazado','Cuenta con límite de intentos');throw new Error(`Superaste el límite de intentos. Intenta de nuevo en ${Math.ceil((u.lockedUntil-Date.now())/60000)} minuto(s).`)}
+  if(await hashPin(pin,u.salt)!==u.pinhash){
+    u.fails++;
+    if(u.fails>=MAX_ATTEMPTS){u.fails=0;u.lockedUntil=Date.now()+LOCK_MIN*60000;log(u.id,'Acceso limitado',MAX_ATTEMPTS+' intentos fallidos');throw new Error(`Superaste ${MAX_ATTEMPTS} intentos fallidos. La cuenta queda limitada por ${LOCK_MIN} minutos.`)}
+    log(u.id,'Acceso rechazado','NIP incorrecto');throw new Error(`Verifica tus datos. Intentos restantes: ${MAX_ATTEMPTS-u.fails}.`);
+  }
+  if(u.blocked)throw new Error('Esta cuenta está bloqueada.');
+  u.fails=0;u.lockedUntil=0;log(u.id,'Inicio de sesión','Acceso web');return u;
+}
+
+/* ===== Pantallas ===== */
+const app=document.getElementById('app');
+const field=(id,label,type='text',extra='')=>`<label for="${id}">${label}</label><input id="${id}" type="${type}" ${extra}>`;
+function showLogin(msg=''){
+  app.innerHTML=`<section class="card"><h1>Bienvenido</h1><p class="sub">Ingresa con tu usuario, número de cuenta o CLABE y tu NIP.</p>
+  <form id="f" novalidate>${field('id','Usuario, cuenta o CLABE','text','autocomplete="username" autocapitalize="none"')}${field('pin','NIP','password','inputmode="numeric" autocomplete="current-password"')}
+  <div class="err" id="e" role="alert">${esc(msg)}</div><button class="btn" type="submit">Entrar a mi cuenta</button></form>
+  <button class="btn dark" id="reg" type="button">Crear cuenta</button></section>
+  ${storageOk?'':'<p class="err">Este navegador no permite guardar datos; los cambios se perderán al cerrar.</p>'}<p class="foot">Los datos se guardan solo en este dispositivo.</p>`;
+  document.getElementById('reg').onclick=showRegister;
+  document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
+    try{const u=await login(id.value,pin.value);sessionStorage.setItem('aurora_sess',u.id);showHome(u)}catch(e){document.getElementById('e').textContent=e.message;pin.value=''}};
+}
+function showRegister(){
+  app.innerHTML=`<section class="card"><h1>Nueva cuenta Aurora</h1><p class="sub">Tu tarjeta de débito quedará ligada a la cuenta.</p>
+  <form id="f" novalidate>${field('n','Nombre completo','text','autocomplete="name"')}${field('u','Nombre de usuario','text','autocomplete="username" autocapitalize="none"')}
+  ${field('p','NIP de 4 o más dígitos','password','inputmode="numeric" autocomplete="new-password"')}<div class="hint">No se aceptan NIP fáciles como 1234, 0000 o secuencias.</div>
+  ${field('i','Saldo inicial de demostración','text','inputmode="decimal" value="0"')}
+  <div class="err" id="e" role="alert"></div><button class="btn" type="submit">Crear cuenta</button></form>
+  <button class="btn dark" id="back" type="button">Volver</button></section>`;
+  document.getElementById('back').onclick=()=>showLogin();
+  document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
+    try{const u=await createUser(n.value,document.getElementById('u').value,p.value,Number(i.value.replace(/,/g,'')||0));log(u.id,'Cuenta creada','Registro web');showLogin('Cuenta creada. Ya puedes entrar con tu usuario y NIP.')}catch(e){document.getElementById('e').textContent=e.message}};
+}
+function showHome(u){
+  u=db.users.find(x=>x.id===u.id);const rows=db.tx.filter(t=>t.uid===u.id).slice(-8).reverse();
+  app.innerHTML=`<div class="top"><div><h1>Hola, ${esc(u.name.split(' ')[0])}</h1><p class="sub">Cuenta ${esc(u.account)}</p></div><button class="btn dark" id="out" type="button">Salir</button></div>
+  <section class="card"><p class="sub">Saldo disponible</p><div class="balance">${peso(u.balance)}</div><p class="sub">Saldo local de demostración</p></section>
+  <section class="card"><h2 style="font-size:1.1rem;margin:0 0 6px">Datos de la cuenta</h2>
+   <div class="row"><span>CLABE</span><span>${esc(u.clabe)}</span></div>
+   <div class="row"><span>Tarjeta de débito</span><span>•••• •••• •••• ${esc(u.card.last4)}</span></div>
+   <div class="row"><span>Vigencia</span><span>${esc(u.card.expiry)}</span></div></section>
+  <section class="card"><h2 style="font-size:1.1rem;margin:0 0 6px">Actividad reciente</h2>
+   ${rows.length?rows.map(t=>`<div class="row"><span>${esc(t.kind)}<small>${esc(t.at)} · ${esc(t.detail)}</small></span><span class="pos">${peso(t.amount)}</span></div>`).join(''):'<p class="sub">Aún no hay movimientos.</p>'}</section>
+  <p class="foot">Simulación local · no conectada a ningún banco</p>`;
+  document.getElementById('out').onclick=()=>{log(u.id,'Cierre de sesión','Sesión cerrada');sessionStorage.removeItem('aurora_sess');showLogin()};
+}
+
+/* ===== Arranque ===== */
+(async()=>{
+  if(!db.users.length){try{const u=await createUser('Usuario Demo','demo','1234',25000,true);log(u.id,'Sistema','Cuenta de demostración creada')}catch(e){console.error(e)}} // NIP 1234 permitido solo en la cuenta demo
+  const s=sessionStorage.getItem('aurora_sess'),u=db.users.find(x=>String(x.id)===s);
+  u?showHome(u):showLogin();
+})();
+</script>
+</body>
+</html>
