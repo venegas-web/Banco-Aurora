@@ -53,7 +53,7 @@ input,select{width:100%;padding:12px;border:1px solid var(--line);background:#ff
 <body>
 <div id="app"></div>
 <script>
-
+ 
 /* ===== Lógica ===== */
 const KEY='aurora_web_v1',MAX_ATTEMPTS=3,LOCK_MIN=15,QUERY_FEE=20,EXT_FEE=35,FX=17.2;
 const CREDIT=['Depósito','Depósito inicial','Cashback','Transferencia recibida'],LIMITED=['Retiro','Transferencia enviada','Pago de servicio'];
@@ -64,7 +64,7 @@ const peso=n=>n.toLocaleString('es-MX',{style:'currency',currency:'MXN'})+' MXN'
 const now=()=>new Date().toLocaleString('es-MX');
 const digits=n=>{const a=new Uint32Array(n);crypto.getRandomValues(a);return [...a].map(x=>x%10).join('')};
 const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
-
+ 
 function pinProblem(p,allowWeak){
   if(!/^\d{4,}$/.test(p))return 'El NIP debe tener al menos 4 dígitos (solo números).';
   if(allowWeak)return null;
@@ -76,7 +76,7 @@ function pinProblem(p,allowWeak){
 }
 function luhnOk(n){let t=0;[...n].reverse().forEach((c,i)=>{let d=+c;if(i%2){d*=2;if(d>9)d-=9}t+=d});return t%10===0}
 function newCardNumber(){const p='5'+digits(14);for(let d=0;d<10;d++)if(luhnOk(p+d))return p+d}
-
+ 
 function sha256(msg){ // respaldo para navegadores sin crypto.subtle (p. ej. abrir por http sin localhost)
   const rr=(x,n)=>(x>>>n)|(x<<(32-n)),K=[],H=[];let p=0;
   for(let n=2;p<64;n++){let ok=true;for(let d=2;d*d<=n;d++)if(n%d===0){ok=false;break}
