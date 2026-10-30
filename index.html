@@ -12,16 +12,22 @@ button,input,select{font:inherit}
 h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:.01em}
 h2{font-size:1.6rem;margin:0 0 4px;color:var(--navy)}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.auth{min-height:100vh;display:grid;grid-template-columns:1fr}
-.hero{background:linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;padding:36px 28px}
-.hero .logo{font-family:Georgia,serif;font-size:1.9rem;letter-spacing:.4em;color:var(--gold)}
-.hero p{color:#B9C4D6;max-width:34ch}.hero h1{font-size:1.9rem;line-height:1.2;margin:28px 0 12px}
-.panel{padding:28px 20px;display:flex;align-items:center;justify-content:center}
-.box{width:100%;max-width:400px}
+.auth{min-height:100vh;display:grid;grid-template-columns:1fr;position:relative;overflow:hidden;color:#fff;background:radial-gradient(900px 500px at 8% -10%,#1E4A8A66,transparent),radial-gradient(700px 520px at 100% 110%,#C9A24B40,transparent),linear-gradient(160deg,#050F20,#0B1F3A 55%,#12305C)}
+.auth::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;right:-170px;top:-170px;border:1px solid #C9A24B55;box-shadow:0 0 0 60px #C9A24B0f,0 0 0 130px #C9A24B09}
+.hero{position:relative;padding:34px 26px 4px}
+.hero .logo{font-family:Georgia,serif;font-size:1.9rem;letter-spacing:.45em;color:var(--gold)}
+.hero h1{font-size:2rem;line-height:1.12;margin:26px 0 10px;max-width:15ch}
+.feat{list-style:none;padding:0;margin:18px 0;display:grid;gap:10px;color:#C9D4E6}
+.feat li{padding-left:30px;position:relative}
+.feat li::before{content:"";position:absolute;left:0;top:.42em;width:12px;height:12px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 5px #C9A24B33}
+.float{display:none;width:300px;aspect-ratio:1.586;border-radius:18px;background:linear-gradient(135deg,#F0D98A,#C9A24B 45%,#7C5C1E);color:#1a1405;padding:20px;flex-direction:column;justify-content:space-between;box-shadow:0 34px 70px #000a;transform:rotate(-6deg);margin-top:34px}
+.panel{position:relative;padding:20px 16px 34px;display:flex;align-items:center;justify-content:center}
+.box{width:100%;max-width:430px;background:#fffffff5;color:var(--ink);border-radius:18px;padding:30px 26px;border-top:5px solid var(--gold);box-shadow:0 30px 80px #0009}
+.box .foot{margin-top:18px}.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 0}.chk input{width:auto}
 label{display:block;font-weight:600;font-size:.9rem;margin:14px 0 4px}
 input,select{width:100%;padding:12px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px}
 .btn{display:block;width:100%;margin-top:18px;padding:13px;border:0;border-radius:6px;background:var(--navy);color:#fff;font-weight:600;cursor:pointer}
-.btn.gold{background:var(--gold);color:var(--navy)}.btn.ghost{background:transparent;color:var(--navy);border:1px solid var(--navy)}
+.btn.gold{background:linear-gradient(135deg,#E6CB78,#C9A24B 55%,#A8822F);color:var(--navy);box-shadow:0 8px 20px #C9A24B55}.btn:hover{filter:brightness(1.07)}.btn.ghost{background:transparent;color:var(--navy);border:1px solid var(--navy)}
 .err{color:var(--red);font-size:.92rem;margin-top:10px;min-height:1.2em}.hint{font-size:.85rem;color:var(--muted);margin-top:4px}
 .shell{display:grid;grid-template-columns:1fr;min-height:100vh}
 .side{background:var(--navy);color:#fff;padding:10px 12px;display:flex;gap:6px;overflow-x:auto;align-items:center;position:sticky;top:0;z-index:5}
@@ -42,12 +48,13 @@ input,select{width:100%;padding:12px;border:1px solid var(--line);background:#ff
 .acts{display:flex;gap:8px;flex-wrap:wrap}.acts .btn{width:auto;margin:0;padding:10px 16px}
 .foot{color:var(--muted);font-size:.8rem;margin-top:26px}
 @media(min-width:800px){
- .auth{grid-template-columns:1.1fr 1fr}.hero{padding:60px 48px}.hero h1{font-size:2.6rem}
+ .auth{grid-template-columns:1.1fr 1fr}.hero{padding:80px 60px}.hero h1{font-size:3.1rem}.float{display:flex}
  .shell{grid-template-columns:250px 1fr}
- .side{flex-direction:column;align-items:stretch;overflow:visible;height:100vh;padding:24px 14px}
+ .side{flex-direction:column;align-items:stretch;overflow-y:auto;height:100vh;padding:24px 14px}
  .side .logo{margin:0 0 20px 8px}.main{padding:34px 40px}.grid{grid-template-columns:1.4fr 1fr}
 }
-@media(prefers-reduced-motion:no-preference){.card,.bal{animation:in .25s ease-out}@keyframes in{from{opacity:0}to{opacity:1}}}
+@media(prefers-reduced-motion:no-preference){.card,.bal,.box{animation:in .3s ease-out}@keyframes in{from{opacity:0}to{opacity:1}}.float{animation:fl 6s ease-in-out infinite}@keyframes fl{50%{transform:rotate(-6deg) translateY(-12px)}}}
+@media print{.side,.acts{display:none}.shell{display:block}}
 </style>
 </head>
 <body>
@@ -56,7 +63,7 @@ input,select{width:100%;padding:12px;border:1px solid var(--line);background:#ff
  
 /* ===== Lógica ===== */
 const KEY='aurora_web_v1',MAX_ATTEMPTS=3,LOCK_MIN=15,QUERY_FEE=20,EXT_FEE=35,FX=17.2;
-const CREDIT=['Depósito','Depósito inicial','Cashback','Transferencia recibida'],LIMITED=['Retiro','Transferencia enviada','Pago de servicio'];
+const CREDIT=['Depósito','Depósito inicial','Cashback','Transferencia recibida'],LIMITED=['Retiro','Transferencia enviada','Pago de servicio','Inversión'];
 const money=t=>{const v=Number(String(t).replace(/,/g,'').trim());if(String(t).trim()===''||!isFinite(v))throw new Error('Escribe un número válido.');return v};
 const WEAK=['1234','4321','0000','2580','1122','6969','1004','2000','2020'];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -101,7 +108,7 @@ async function hashPin(pin,salt){
   let h=pin+salt;for(let i=0;i<2000;i++)h=sha256(h+pin);return h;
 }
 //--UI--
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY))||{};return{users:d.users||[],tx:d.tx||[],logs:d.logs||[],alerts:d.alerts||[]}}catch{return{users:[],tx:[],logs:[],alerts:[]}}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY))||{};return{users:d.users||[],tx:d.tx||[],logs:d.logs||[],alerts:d.alerts||[],inv:d.inv||[],sched:d.sched||[]}}catch{return{users:[],tx:[],logs:[],alerts:[],inv:[],sched:[]}}}
 let db=load(),storageOk=true;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch{storageOk=false}}
 const log=(uid,action,detail)=>{db.logs.push({uid,action,detail,at:now()});save()};
@@ -141,7 +148,7 @@ function addTx(u,kind,amount,detail,fee=0){
     if(spent+amount+fee>(u.limit||10000))throw new Error('La operación supera tu límite diario.');
   }
   u.balance=Math.round((u.balance+(credit?amount:-amount-fee))*100)/100;
-  db.tx.push({uid:u.id,kind,amount,fee,detail,at:now(),day});
+  db.tx.push({uid:u.id,kind,amount,fee,detail,at:now(),day,ts:Date.now()});
   db.alerts.push({uid:u.id,msg:(`${kind} por ${peso(amount)}`+(fee?` (comisión ${peso(fee)})`:'')+` · ${detail}`).slice(0,140),at:now(),seen:false});
   save();
 }
@@ -164,20 +171,24 @@ const sign=t=>CREDIT.includes(t.kind)?'<span class="pos">+':'<span class="neg">�
 const unread=()=>db.alerts.filter(a=>a.uid===me.id&&!a.seen).length;
 function auth(mode,msg=''){
   const reg=mode==='reg';
-  A.innerHTML=`<div class="auth"><section class="hero"><div class="logo">AURORA</div><h1>Control claro.<br>Finanzas bajo tu mirada.</h1><p>Banca digital de demostración para aprender a manejar tu dinero. Simulador educativo, sin dinero real.</p></section>
+  A.innerHTML=`<div class="auth"><section class="hero"><div class="logo">AURORA</div><h1>${reg?'Abre tu cuenta en minutos.':'Control claro. Finanzas bajo tu mirada.'}</h1>
+  <ul class="feat"><li>Tarjeta de débito ligada a tu cuenta</li><li>Alertas por cada movimiento</li><li>Transferencias, ahorro e inversión simulados</li></ul>
+  <div class="float" aria-hidden="true"><span class="serif" style="letter-spacing:.3em">AURORA</span><span style="font-size:1.15rem;letter-spacing:.14em">5120 •••• •••• 0000</span><span>TITULAR · 12/30</span></div></section>
   <section class="panel"><div class="box"><h2>${reg?'Abrir una cuenta':'Bienvenido'}</h2><p class="sub">${reg?'Tu tarjeta de débito quedará ligada a la cuenta.':'Ingresa con tu usuario, número de cuenta o CLABE.'}</p>
-  <form id="f" novalidate>${reg?field('n','Nombre completo','text','autocomplete="name"')+field('u','Nombre de usuario','text','autocapitalize="none"')+field('p','NIP de 4 o más dígitos','password','inputmode="numeric" autocomplete="new-password"')+'<div class="hint">No se aceptan NIP fáciles como 1234, 0000 o secuencias.</div>'+field('i','Saldo inicial de demostración','text','inputmode="decimal" value="0"'):field('id','Usuario, cuenta o CLABE','text','autocapitalize="none" autocomplete="username"')+field('p','NIP','password','inputmode="numeric" autocomplete="current-password"')}
-  <div class="err" role="alert">${esc(msg)}</div><button class="btn gold">${reg?'Crear cuenta':'Entrar a mi cuenta'}</button></form>
-  <button class="btn ghost" id="sw" type="button">${reg?'Ya tengo cuenta':'Crear cuenta'}</button>${storageOk?'':'<p class="err">Este navegador no permite guardar datos.</p>'}<p class="foot">Los datos se guardan solo en este dispositivo.</p></div></section></div>`;
+  <form id="f" novalidate>${reg?field('n','Nombre completo','text','autocomplete="name"')+field('u','Nombre de usuario','text','autocapitalize="none"')+field('p','NIP de 4 o más dígitos','password','inputmode="numeric" autocomplete="new-password"')+'<div class="hint" id="pm">Evita NIP fáciles como 1234, 0000 o secuencias.</div><label class="chk"><input type="checkbox" id="sp"> Mostrar NIP</label>'+field('i','Saldo inicial de demostración','text','inputmode="decimal" value="0"'):field('id','Usuario, cuenta o CLABE','text','autocapitalize="none" autocomplete="username"')+field('p','NIP','password','inputmode="numeric" autocomplete="current-password"')+'<label class="chk"><input type="checkbox" id="sp"> Mostrar NIP</label>'}
+  <div class="err" role="alert">${esc(msg)}</div><button class="btn gold big">${reg?'Crear cuenta':'Entrar a mi cuenta'}</button></form>
+  <button class="btn ghost" id="sw" type="button">${reg?'Ya tengo cuenta':'Crear cuenta'}</button>${storageOk?'':'<p class="err">Este navegador no permite guardar datos.</p>'}<p class="foot">Simulador educativo · los datos se guardan solo en este dispositivo.</p></div></section></div>`;
   $('#sw').onclick=()=>auth(reg?'login':'reg');
+  $('#sp').onchange=e=>{$('#p').type=e.target.checked?'text':'password'};
+  if(reg)$('#p').oninput=()=>{const v=$('#p').value,pr=v?pinProblem(v):null,pm=$('#pm');pm.textContent=v?(pr||'✔ NIP aceptado'):'Evita NIP fáciles como 1234, 0000 o secuencias.';pm.style.color=v?(pr?'var(--red)':'var(--green)'):''};
   $('#f').onsubmit=async e=>{e.preventDefault();const er=$('.err');
     try{if(reg){const u=await createUser($('#n').value,$('#u').value,$('#p').value,money($('#i').value||0));log(u.id,'Cuenta creada','Registro web');auth('login','Cuenta creada. Ya puedes entrar con tu usuario y NIP.')}
         else{me=await login($('#id').value,$('#p').value);view='home';flash='';shell()}}catch(x){er.textContent=x.message;const p=$('#p');if(p)p.value=''}};
 }
-const NAV=[['home','Resumen'],['transfer','Transferir'],['cash','Depósitos y retiros'],['moves','Movimientos'],['query','Consulta de saldo'],['alerts','Alertas'],['pay','Pagar servicios'],['cashback','Cashback'],['fx','Cambio MXN / USD'],['profile','Perfil y seguridad']];
+const NAV=[['home','Resumen'],['transfer','Transferir'],['cash','Depósitos y retiros'],['moves','Movimientos'],['query','Consulta de saldo'],['alerts','Alertas'],['reports','Reportes de gastos'],['savings','Ahorro y presupuesto'],['invest','Cuenta de inversión'],['pay','Pagar servicios'],['joint','Cuentas conjuntas'],['cards','Tarjetas vinculadas'],['sched','Transferencias programadas'],['cashback','Cashback'],['fx','Cambio MXN / USD'],['tickets','Tickets y exportación'],['logs','Historial de accesos'],['voice','Comando de voz'],['chat','Atención al cliente'],['profile','Perfil y seguridad']];
 function go(v,f=''){view=v;flash=f;shell()}
 function shell(){
-  me=db.users.find(x=>x.id===me.id);const n=unread();
+  me=db.users.find(x=>x.id===me.id);runSched(me);const n=unread();
   A.innerHTML=`<div class="shell"><nav class="side" aria-label="Menú"><div class="logo">AURORA</div>${NAV.map(([k,t])=>`<button data-v="${k}" class="${k===view?'on':''}">${t}${k==='alerts'&&n?` (${n})`:''}</button>`).join('')}<span class="grow"></span><button id="out">Cerrar sesión</button></nav><main class="main" id="m"></main></div>`;
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>go(b.dataset.v));
   $('#out').onclick=()=>{log(me.id,'Cierre de sesión','Sesión cerrada');me=null;auth('login')};
@@ -203,7 +214,7 @@ const views={
  pay:()=>head('Pagar servicios','Pago de servicio simulado.')+formHtml(field('s','Servicio','select',['Agua','TV','Teléfono','Internet','Electricidad'])+field('r','Referencia del servicio')+field('a','Importe MXN','text','inputmode="decimal"'),'Registrar pago'),
  cashback:()=>head('Cashback','Calcula tu cashback del 1% o 2%.')+formHtml(field('a','Importe de compra MXN','text','inputmode="decimal"')+field('t','Porcentaje','select',['1%','2%']),'Calcular y registrar'),
  fx:()=>head('Cambio MXN / USD','Tipo de cambio de ejemplo ($'+FX+' MXN por USD), no es cotización en tiempo real.')+formHtml(field('a','Cantidad','text','inputmode="decimal" value="100"')+field('k','Conversión','select',['MXN a USD','USD a MXN']),'Convertir')+'<div class="card" id="res" style="max-width:480px">Resultado: —</div>',
- profile:()=>head('Perfil y seguridad','Usuario: '+esc(me.username)+' · Cuenta: '+esc(me.account))+formHtml(field('l','Límite diario MXN','text','inputmode="decimal" value="'+(me.limit||10000)+'"')+field('cu','Moneda principal','select',['MXN','USD'])+field('o','NIP actual (solo para cambiarlo)','password','inputmode="numeric"')+field('n','Nuevo NIP (opcional)','password','inputmode="numeric"'),'Guardar perfil')
+ profile:()=>head('Perfil y seguridad','Usuario: '+esc(me.username)+' · Cuenta: '+esc(me.account))+formHtml(field('l','Límite diario MXN','text','inputmode="decimal" value="'+(me.limit||10000)+'"')+field('cu','Moneda principal','select',['MXN','USD'])+field('o','NIP actual (solo para cambiarlo)','password','inputmode="numeric"')+field('n','Nuevo NIP (opcional)','password','inputmode="numeric"')+field('so','Sonido del teclado','select',['Activado','Desactivado'])+field('vo','Comandos de voz','select',['Desactivado','Activado']),'Guardar perfil')
 };
 const wire={
  home:m=>m.querySelectorAll('[data-v2]').forEach(b=>b.onclick=e=>{e.preventDefault();go(b.dataset.v2)}),
@@ -221,10 +232,62 @@ const wire={
    if(c<=0)throw new Error('El importe es muy pequeño para generar cashback.');if(!confirm(`Cashback: ${peso(c)}. ¿Registrarlo en la cuenta demo?`))return;addTx(me,'Cashback',c,`Cashback ${$('#t').value} sobre compra ${peso(a)}`);go('home','Cashback registrado: '+peso(c)+'.')}),
  fx:onForm(()=>{const a=money($('#a').value);if(a<0)throw new Error('La cantidad no puede ser negativa.');const m=$('#k').value==='MXN a USD';
    $('#res').textContent='Resultado: '+(m?a/FX:a*FX).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+(m?' USD':' MXN')}),
- profile:m=>{$('#cu').value=me.cur||'MXN';onForm(async()=>{const l=money($('#l').value);if(l<=0)throw new Error('El límite debe ser positivo.');
+ profile:m=>{$('#cu').value=me.cur||'MXN';$('#so').value=me.sound===false?'Desactivado':'Activado';$('#vo').value=me.voice?'Activado':'Desactivado';onForm(async()=>{const l=money($('#l').value);if(l<=0)throw new Error('El límite debe ser positivo.');
    const nn=$('#n').value;if(nn){const pp=pinProblem(nn);if(pp)throw new Error(pp);if(await hashPin($('#o').value,me.salt)!==me.pinhash)throw new Error('NIP actual incorrecto.');me.salt=digits(16);me.pinhash=await hashPin(nn,me.salt);log(me.id,'NIP cambiado','Cambio realizado')}
-   me.limit=l;me.cur=$('#cu').value;save();log(me.id,'Perfil actualizado','Preferencias guardadas');go('profile','Perfil guardado.')})(m)}
+   me.limit=l;me.cur=$('#cu').value;me.sound=$('#so').value==='Activado';me.voice=$('#vo').value==='Activado';save();log(me.id,'Perfil actualizado','Preferencias guardadas');go('profile','Perfil guardado.')})(m)}
 };
+/* ===== Módulos adicionales ===== */
+const EXPENSES=['Retiro','Transferencia enviada','Pago de servicio','Inversión','Ahorro apartado','Comisión por consulta'],RATES={Conservadora:.05,Equilibrada:.09,Crecimiento:.13};
+const sav=u=>u.sav||(u.sav={name:'Mi meta',target:5000,saved:0,budget:8000});
+function runSched(u){let ch=false;db.sched.filter(s=>s.uid===u.id&&s.status==='Pendiente'&&s.at<=Date.now()).forEach(s=>{try{transfer(u,s.dest,s.amount,'Programada: '+s.note);s.status='Ejecutada'}catch(e){s.status='No ejecutada: '+e.message}ch=true;log(u.id,'Transferencia programada',s.status)});if(ch)save()}
+let ac;function beep(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=880;g.gain.value=.04;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+.03)}catch{}}
+document.addEventListener('keydown',e=>{if((!me||me.sound!==false)&&(e.key.length===1||e.key==='Backspace'))beep()});
+const ticket=()=>{const t=mine().slice(-1)[0];return `BANCO AURORA | COMPROBANTE DE DEMOSTRACION\nTitular: ${me.name}\nCuenta: ${me.account}\nFecha: ${now()}\n`+(t?`${t.kind}\nImporte: ${peso(t.amount)}\nComision: ${peso(t.fee||0)}\nDetalle: ${t.detail}\n`:'Resumen de cuenta\n')+`Saldo actual: ${peso(me.balance)}\nEste documento no es comprobante bancario real.\n`};
+const dl=(n,c,t)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()};
+const list=(l,f,empty)=>l.length?l.map(f).join(''):`<p class="sub">${empty}</p>`;
+Object.assign(views,{
+ reports:()=>{const f=d=>{const since=Date.now()-d*864e5,m={};mine().filter(t=>t.ts>=since&&EXPENSES.includes(t.kind)).forEach(t=>m[t.kind]=(m[t.kind]||0)+t.amount+(t.fee||0));const tot=Object.values(m).reduce((a,b)=>a+b,0);return `<div class="card"><h3 class="serif" style="margin:0">${d===7?'Últimos 7 días':'Últimos 30 días'}</h3><div style="font-size:1.3rem;font-weight:700;margin:6px 0">Gastos registrados: ${peso(tot)}</div>${Object.entries(m).map(([k,v])=>`<div class="row"><span>${k}</span><span>${peso(v)}</span></div>`).join('')}</div>`};return head('Reportes de gastos','Resumen semanal y mensual.')+f(7)+f(30)+'<div class="acts card"><button class="btn ghost" id="csv">Exportar CSV</button></div>'},
+ savings:()=>{const s=sav(me),p=Math.min(100,s.target?s.saved/s.target*100:0);return head('Ahorro y presupuesto','Fija una meta y aporta a ella.')+`<div class="card" style="max-width:480px"><b>${esc(s.name)}</b> · ${peso(s.saved)} de ${peso(s.target)}<div style="background:#E9E5D8;border-radius:99px;height:10px;margin-top:8px"><div style="width:${p}%;height:10px;border-radius:99px;background:var(--gold)"></div></div><div class="hint">${p.toFixed(0)}% alcanzado · Presupuesto mensual ${peso(s.budget)}</div></div>`+formHtml(field('nm','Nombre de la meta','text','value="'+esc(s.name)+'"')+field('t','Objetivo MXN','text','value="'+s.target+'"')+field('a','Aportación a ahorro MXN','text','value="0"')+field('b','Presupuesto mensual MXN','text','value="'+s.budget+'"'),'Guardar plan')},
+ invest:()=>head('Cuenta de inversión','Rendimientos ilustrativos, no son una oferta real.')+formHtml(field('p','Producto','select',Object.keys(RATES))+field('a','Importe MXN','text','inputmode="decimal"')+field('d','Plazo en días','text','value="30"'),'Simular inversión')+`<div class="card">${list(db.inv.filter(i=>i.uid===me.id).reverse(),i=>`<div class="row"><span>${esc(i.p)} · ${i.d} días<small>${esc(i.at)}</small></span><span>${peso(i.amount)}</span></div>`,'Aún no tienes inversiones.')}</div>`,
+ joint:()=>head('Cuentas conjuntas','Registro local de cotitulares; no crea derechos bancarios reales.')+formHtml(field('n','Nombre del cotitular'),'Agregar cotitular')+`<div class="card">${list((me.joint||[]).slice().reverse(),j=>`<div class="row"><span>${esc(j.name)}<small>${esc(j.at)}</small></span></div>`,'Sin cotitulares.')}</div>`,
+ sched:()=>head('Transferencias programadas','Se ejecutan al abrir la página después de la fecha. A otro banco: '+peso(EXT_FEE)+'.')+formHtml(field('d','Cuenta o CLABE del destinatario')+field('a','Importe MXN','text','inputmode="decimal"')+field('c','Concepto','text','value="Pago programado"')+field('w','Fecha y hora','datetime-local'),'Programar')+`<div class="card">${list(db.sched.filter(s=>s.uid===me.id).reverse(),s=>`<div class="row"><span>${esc(s.dest)}<small>${new Date(s.at).toLocaleString('es-MX')} · ${esc(s.status)}</small></span><span>${peso(s.amount)}</span></div>`,'Sin programaciones.')}</div>`,
+ cards:()=>head('Tarjetas vinculadas','Tu débito está ligado a la cuenta. Simulación: solo se guardan los últimos 4 dígitos; no uses datos de una tarjeta real.')+`<div class="card"><div class="row"><span>Débito<small>${esc(me.card.holder)}</small></span><span>•••• ${esc(me.card.last4)} · ${esc(me.card.expiry)}</span></div>${(me.cards||[]).map((c,i)=>`<div class="row"><span>Crédito<small>${esc(c.holder)}</small></span><span>•••• ${esc(c.last4)} · ${esc(c.expiry)} <button class="btn ghost" data-un="${i}" style="display:inline;width:auto;margin:0 0 0 8px;padding:4px 10px">Quitar</button></span></div>`).join('')}</div>`+formHtml(field('n','Número de tarjeta de crédito','text','inputmode="numeric"')+field('h','Titular','text','value="'+esc(me.name)+'"')+field('x','Vigencia (MM/AA)'),'Vincular tarjeta de crédito'),
+ tickets:()=>head('Tickets y exportación','Comprobante del último movimiento.')+`<div class="card"><pre style="white-space:pre-wrap;margin:0;font:inherit">${esc(ticket())}</pre></div><div class="acts card"><button class="btn ghost" id="t1">Guardar TXT</button><button class="btn ghost" id="t2">PDF / Imprimir</button><button class="btn ghost" id="t3">Código QR</button><button class="btn ghost" id="t4">WhatsApp</button><button class="btn ghost" id="t5">Correo</button><button class="btn ghost" id="csv">Exportar CSV</button></div><div id="qr" class="card" hidden></div>`,
+ logs:()=>head('Historial de accesos','Registro de actividad de tu cuenta.')+`<div class="card">${list(db.logs.filter(l=>l.uid===me.id).slice(-100).reverse(),l=>`<div class="row"><span>${esc(l.action)}<small>${esc(l.detail)}</small></span><small>${esc(l.at)}</small></div>`,'Sin registros.')}</div>`,
+ voice:()=>head('Comando de voz','Solo navegación: por seguridad no se ejecutan operaciones de dinero por voz.')+`<div class="card" style="max-width:480px"><p class="sub">Di, por ejemplo: “movimientos”, “ahorro”, “inversión”, “servicios” o “perfil”.</p><button class="btn gold" id="mic">Escuchar</button><div class="err" id="vo2" role="alert"></div></div>`,
+ chat:()=>head('Atención al cliente','Ayuda automática local, sin servidor.')+`<div class="card" id="cb" style="max-height:50vh;overflow:auto"><p><b>Aurora:</b> Puedo ayudarte con saldo, transferencias, NIP, ahorro, inversiones, comisiones, tarjetas, alertas y servicios.</p></div><form id="f" class="card" style="display:flex;gap:8px"><input id="q" placeholder="Escribe tu pregunta" aria-label="Pregunta"><button class="btn gold" style="width:auto;margin:0">Enviar</button></form>`
+});
+Object.assign(wire,{
+ reports:wire.moves,
+ savings:onForm(()=>{const s=sav(me),t=money($('#t').value),a=money($('#a').value),b=money($('#b').value);if(t<=0||a<0||b<=0)throw new Error('Objetivo y presupuesto deben ser positivos; la aportación no puede ser negativa.');if(a)addTx(me,'Ahorro apartado',a,'Aportación a meta');Object.assign(s,{name:$('#nm').value.trim()||'Mi meta',target:t,budget:b,saved:s.saved+a});save();go('savings','Meta y presupuesto guardados.')}),
+ invest:onForm(()=>{const a=money($('#a').value),d=Math.trunc(money($('#d').value)),p=$('#p').value;if(d<1||d>3650)throw new Error('El plazo debe estar entre 1 y 3650 días.');addTx(me,'Inversión',a,`${p}, ${d} días`);db.inv.push({uid:me.id,p,amount:a,d,at:now()});save();go('invest',`Inversión simulada. Rendimiento simple estimado: ${peso(a*RATES[p]*d/365)}. No está garantizado.`)}),
+ joint:onForm(()=>{const n=$('#n').value.trim();if(!n)throw new Error('Escribe el nombre.');(me.joint=me.joint||[]).push({name:n,at:now()});save();log(me.id,'Cotitular registrado',n);go('joint','Cotitular agregado.')}),
+ sched:onForm(()=>{const a=money($('#a').value),at=new Date($('#w').value).getTime(),d=$('#d').value.trim();if(!d||!(a>0)||!isFinite(at)||at<=Date.now())throw new Error('Fecha futura, importe positivo y destinatario obligatorio.');db.sched.push({uid:me.id,dest:d,amount:a,note:$('#c').value,at,status:'Pendiente'});save();go('sched','Transferencia programada. Si la cuenta no pertenece a Aurora se cobrará comisión de '+peso(EXT_FEE)+'.')}),
+ cards:m=>{m.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{if(confirm('¿Desvincular la tarjeta?')){me.cards.splice(+b.dataset.un,1);save();log(me.id,'Tarjeta desvinculada','Crédito');go('cards')}});
+  onForm(()=>{const n=$('#n').value.replace(/[\s-]/g,''),x=$('#x').value.trim(),mm=/^(0[1-9]|1[0-2])\/(\d{2})$/.exec(x),h=$('#h').value.trim(),d=new Date();
+   if(!/^\d{13,19}$/.test(n)||!luhnOk(n))throw new Error('Número de tarjeta no válido.');if(!h)throw new Error('Escribe el nombre del titular.');if(!mm)throw new Error('La vigencia debe tener formato MM/AA.');
+   const y=2000+ +mm[2];if(y<d.getFullYear()||(y===d.getFullYear()&&+mm[1]<d.getMonth()+1))throw new Error('La tarjeta está vencida.');if((me.cards||[]).some(c=>c.last4===n.slice(-4)))throw new Error('Esa tarjeta ya está vinculada.');
+   (me.cards=me.cards||[]).push({last4:n.slice(-4),holder:h.toUpperCase(),expiry:x});save();log(me.id,'Tarjeta vinculada','Crédito terminación '+n.slice(-4));go('cards','Tarjeta de crédito vinculada.')})(m)},
+ tickets:()=>{wire.moves();$('#t1').onclick=()=>dl('ticket_aurora.txt',ticket(),'text/plain');$('#t2').onclick=()=>window.print();
+  $('#t4').onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(ticket()),'_blank');$('#t5').onclick=()=>{location.href='mailto:?subject='+encodeURIComponent('Ticket Banco Aurora demo')+'&body='+encodeURIComponent(ticket())};
+  $('#t3').onclick=()=>{const show=()=>{const q=$('#qr');q.hidden=false;q.innerHTML='';new QRCode(q,{text:ticket().normalize('NFD').replace(/[\u0300-\u036f]/g,''),width:220,height:220})};if(window.QRCode)return show();
+   const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=show;s.onerror=()=>alert('No se pudo cargar la biblioteca de QR. Revisa tu conexión a internet.');document.head.appendChild(s)}},
+ voice:()=>{$('#mic').onclick=()=>{const o=$('#vo2'),SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!me.voice){o.textContent='Activa los comandos de voz en Perfil y seguridad.';return}if(!SR){o.textContent='Tu navegador no soporta reconocimiento de voz (prueba Chrome).';return}
+  const r=new SR();r.lang='es-MX';r.onresult=e=>{const p=e.results[0][0].transcript.toLowerCase();log(me.id,'Comando de voz',p);const mp=[['movimiento','moves'],['historial','moves'],['ahorro','savings'],['inversi','invest'],['servicio','pay'],['perfil','profile'],['seguridad','profile'],['alerta','alerts'],['reporte','reports']].find(([k])=>p.includes(k));mp?go(mp[1]):o.textContent='Escuché: '+p+'. No tiene una acción asociada.'};
+  r.onerror=()=>{o.textContent='No se reconoció. Revisa el micrófono y la conexión.'};r.start()}},
+ chat:()=>{$('#f').onsubmit=e=>{e.preventDefault();const q=$('#q').value.trim(),l=q.toLowerCase();if(!q)return;let a;
+  if(/comisi/.test(l))a=`Consulta de saldo: ${peso(QUERY_FEE)}. Transferencia a otro banco: ${peso(EXT_FEE)}. Entre cuentas Aurora no hay comisión.`;
+  else if(/saldo/.test(l)){if(confirm(`Consultar tu saldo tiene una comisión de ${peso(QUERY_FEE)}. ¿Continuar?`)){try{a=`Tu saldo es ${peso(consult(me))}. Se cobró la comisión de consulta de ${peso(QUERY_FEE)}.`}catch(x){a='No se pudo hacer la consulta: '+x.message}}else a='Consulta cancelada. No se cobró comisión.'}
+  else if(/transfer/.test(l))a=`Abre Transferir. A otro banco la comisión es de ${peso(EXT_FEE)}; entre cuentas Aurora no tiene costo.`;
+  else if(/nip|clave/.test(l))a='Puedes cambiar tu NIP en Perfil y seguridad. No se aceptan NIP fáciles como 1234 y tras 3 intentos fallidos la cuenta se limita por unos minutos.';
+  else if(/ahorro|presupuesto/.test(l))a='Abre Ahorro y presupuesto para editar tu meta y límite mensual.';
+  else if(/invers/.test(l))a='En Cuenta de inversión puedes simular un plazo con tasas ilustrativas.';
+  else if(/servicio|agua/.test(l))a='Abre Pagar servicios para simular pagos de agua, TV, teléfono, internet o electricidad.';
+  else if(/tarjeta/.test(l))a='En Tarjetas vinculadas ves tu tarjeta de débito y puedes ligar tarjetas de crédito.';
+  else if(/alerta|aviso/.test(l))a='En Alertas verás un aviso por cada operación de tu cuenta.';
+  else a='Prueba preguntar por saldo, transferencia, NIP, ahorro, inversión, comisiones, tarjetas o servicios.';
+  const c=$('#cb');c.insertAdjacentHTML('beforeend',`<p><b>Tú:</b> ${esc(q)}<br><b>Aurora:</b> ${esc(a)}</p>`);c.scrollTop=c.scrollHeight;$('#q').value='';log(me.id,'Chatbot',q.slice(0,150))}}
+});
 (async()=>{
   if(!db.users.length){try{const u=await createUser('Usuario Demo','demo','1234',25000,true);log(u.id,'Sistema','Cuenta de demostración creada')}catch(e){console.error(e)}}
   auth('login');
