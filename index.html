@@ -289,7 +289,7 @@ Object.assign(wire,{
   const c=$('#cb');c.insertAdjacentHTML('beforeend',`<p><b>Tú:</b> ${esc(q)}<br><b>Aurora:</b> ${esc(a)}</p>`);c.scrollTop=c.scrollHeight;$('#q').value='';log(me.id,'Chatbot',q.slice(0,150))}}
 });
 /* ===== Visión artificial (solo detecta rostros; el video no se guarda ni se envía) ===== */
-const cam={stream:null,video:null,raf:0,found:false};
+const cam={stream:null,video:null,raf:0,found:false,name:''};
 function stopCam(){if(cam.raf&&window.cancelAnimationFrame)cancelAnimationFrame(cam.raf);cam.raf=0;if(cam.stream)cam.stream.getTracks().forEach(t=>t.stop());cam.stream=null;cam.video=null}
 let detP=null;
 function getDetector(){return detP||(detP=(async()=>{
@@ -298,16 +298,22 @@ function getDetector(){return detP||(detP=(async()=>{
     const d=await M.FaceDetector.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'});
     return{detect:async v=>d.detectForVideo(v,performance.now()).detections.map(x=>({x:x.boundingBox.originX,y:x.boundingBox.originY,w:x.boundingBox.width,h:x.boundingBox.height}))}}
   catch{detP=null;throw new Error('No se pudo cargar el detector de rostros. Revisa tu conexión a internet o prueba en Chrome.')}})())}
-views.vision=()=>head('Visión artificial','Seguridad: detecta si hay un rostro frente a la cámara. Solo detecta rostros, no identifica personas. El video no se guarda ni se envía a ningún servidor.')+`<div class="card" style="max-width:520px">${me.face?'<canvas id="cv" width="640" height="480" style="width:100%;border-radius:8px;background:#0B1F3A"></canvas><button class="btn gold" id="cam">Iniciar cámara</button><button class="btn ghost" id="camx" hidden>Detener y registrar resultado</button>':'<p class="sub">Activa primero la opción de visión artificial en Perfil y seguridad.</p>'}<div class="err" id="vs" role="alert"></div></div>`;
+async function openCamera(two){ // cámara 1 = la de la computadora; cámara 2 = celular por DroidCam (aparece como una cámara más)
+  const md=navigator.mediaDevices,tmp=await md.getUserMedia({video:true,audio:false});tmp.getTracks().forEach(t=>t.stop()); // da permiso para ver los nombres de las cámaras
+  const devs=(await md.enumerateDevices()).filter(d=>d.kind==='videoinput'),droid=d=>/droidcam/i.test(d.label),d=two?devs.find(droid):devs.find(x=>!droid(x));
+  if(!d)throw new Error(two?'No se encontró DroidCam. Abre la app DroidCam en el celular y el cliente DroidCam en la computadora, conéctalos y vuelve a intentar.':'No se encontró una cámara en la computadora.');
+  return md.getUserMedia({video:{deviceId:{exact:d.deviceId}},audio:false});
+}
+views.vision=()=>head('Visión artificial','Seguridad: detecta si hay un rostro frente a la cámara. Solo detecta rostros, no identifica personas. El video no se guarda ni se envía a ningún servidor.')+`<div class="card" style="max-width:520px">${me.face?field('src','Cámara','select',['Cámara 1 (computadora)','Cámara 2 (celular · DroidCam)'])+'<p class="hint">La cámara 2 usa DroidCam: abre la app en el celular y el cliente DroidCam en la computadora; aparecerá como una cámara más.</p><canvas id="cv" width="640" height="480" style="width:100%;border-radius:8px;background:#0B1F3A"></canvas><button class="btn gold" id="cam">Iniciar cámara</button><button class="btn ghost" id="camx" hidden>Detener y registrar resultado</button>':'<p class="sub">Activa primero la opción de visión artificial en Perfil y seguridad.</p>'}<div class="err" id="vs" role="alert"></div></div>`;
 wire.vision=()=>{if(!me.face)return;const st=$('#vs'),cv=$('#cv'),ctx=cv.getContext('2d');
   $('#cam').onclick=async()=>{try{st.textContent='';if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Tu navegador no permite usar la cámara aquí. Abre la página con https.');
-    const det=await getDetector();cam.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    const det=await getDetector();const two=$('#src').value.startsWith('Cámara 2');cam.name=two?'Cámara 2 (celular, DroidCam)':'Cámara 1 (computadora)';cam.stream=await openCamera(two);$('#src').disabled=true;
     const v=cam.video=document.createElement('video');v.muted=true;v.playsInline=true;v.srcObject=cam.stream;await v.play();cam.found=false;$('#cam').hidden=true;$('#camx').hidden=false;
     const loop=async()=>{if(!cam.stream)return;if(v.videoWidth){cv.width=v.videoWidth;cv.height=v.videoHeight;ctx.drawImage(v,0,0);let b=[];try{b=await det.detect(v)}catch{st.textContent='El detector no pudo analizar el video.'}
       if(cam.stream){ctx.strokeStyle='#28B478';ctx.lineWidth=4;b.forEach(r=>{ctx.strokeRect(r.x,r.y,r.w,r.h);cam.found=true})}}
       if(cam.stream)cam.raf=requestAnimationFrame(loop)};loop()}
-   catch(e){stopCam();st.textContent=e.name==='NotAllowedError'?'Permiso de cámara denegado.':e.message}};
-  $('#camx').onclick=()=>{const f=cam.found;stopCam();log(me.id,'Visión artificial',f?'Rostro detectado':'Sin detección');go('vision',f?'Resultado: se detectó un rostro.':'Resultado: no se detectó un rostro.')}};
+   catch(e){stopCam();$('#src').disabled=false;st.textContent=e.name==='NotAllowedError'?'Permiso de cámara denegado.':e.message}};
+  $('#camx').onclick=()=>{const f=cam.found;stopCam();log(me.id,'Visión artificial',(f?'Rostro detectado':'Sin detección')+' · '+cam.name);go('vision',f?'Resultado: se detectó un rostro.':'Resultado: no se detectó un rostro.')}};
 (async()=>{
   if(!db.users.length){try{const u=await createUser('Usuario Demo','demo','1234',25000,true);log(u.id,'Sistema','Cuenta de demostración creada')}catch(e){console.error(e)}}
   auth('login');
