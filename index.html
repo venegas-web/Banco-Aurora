@@ -1,323 +1,569 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Banco Aurora</title>
-<style>
-:root{--navy:#0B1F3A;--navy2:#13305A;--gold:#C9A24B;--gold-l:#EBDDB5;--ivory:#F6F3EC;--ink:#1B2433;--muted:#667085;--line:#E3DFD3;--green:#1F7A57;--red:#A32F2F}
-*{box-sizing:border-box}
-body{margin:0;background:var(--ivory);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
-button,input,select{font:inherit}
-h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:.01em}
-h2{font-size:1.6rem;margin:0 0 4px;color:var(--navy)}
-:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.auth{min-height:100vh;display:grid;grid-template-columns:1fr;position:relative;overflow:hidden;color:#fff;background:radial-gradient(900px 500px at 8% -10%,#1E4A8A66,transparent),radial-gradient(700px 520px at 100% 110%,#C9A24B40,transparent),linear-gradient(160deg,#050F20,#0B1F3A 55%,#12305C)}
-.auth::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;right:-170px;top:-170px;border:1px solid #C9A24B55;box-shadow:0 0 0 60px #C9A24B0f,0 0 0 130px #C9A24B09}
-.hero{position:relative;padding:34px 26px 4px}
-.hero .logo{font-family:Georgia,serif;font-size:1.9rem;letter-spacing:.45em;color:var(--gold)}
-.hero h1{font-size:2rem;line-height:1.12;margin:26px 0 10px;max-width:15ch}
-.feat{list-style:none;padding:0;margin:18px 0;display:grid;gap:10px;color:#C9D4E6}
-.feat li{padding-left:30px;position:relative}
-.feat li::before{content:"";position:absolute;left:0;top:.42em;width:12px;height:12px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 5px #C9A24B33}
-.float{display:none;width:300px;aspect-ratio:1.586;border-radius:18px;background:linear-gradient(135deg,#F0D98A,#C9A24B 45%,#7C5C1E);color:#1a1405;padding:20px;flex-direction:column;justify-content:space-between;box-shadow:0 34px 70px #000a;transform:rotate(-6deg);margin-top:34px}
-.panel{position:relative;padding:20px 16px 34px;display:flex;align-items:center;justify-content:center}
-.box{width:100%;max-width:430px;background:#fffffff5;color:var(--ink);border-radius:18px;padding:30px 26px;border-top:5px solid var(--gold);box-shadow:0 30px 80px #0009}
-.box .foot{margin-top:18px}.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 0}.chk input{width:auto}
-label{display:block;font-weight:600;font-size:.9rem;margin:14px 0 4px}
-input,select{width:100%;padding:12px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px}
-.btn{display:block;width:100%;margin-top:18px;padding:13px;border:0;border-radius:6px;background:var(--navy);color:#fff;font-weight:600;cursor:pointer}
-.btn.gold{background:linear-gradient(135deg,#E6CB78,#C9A24B 55%,#A8822F);color:var(--navy);box-shadow:0 8px 20px #C9A24B55}.btn:hover{filter:brightness(1.07)}.btn.ghost{background:transparent;color:var(--navy);border:1px solid var(--navy)}
-.err{color:var(--red);font-size:.92rem;margin-top:10px;min-height:1.2em}.hint{font-size:.85rem;color:var(--muted);margin-top:4px}
-.shell{display:grid;grid-template-columns:1fr;min-height:100vh}
-.side{background:var(--navy);color:#fff;padding:10px 12px;display:flex;gap:6px;overflow-x:auto;align-items:center;position:sticky;top:0;z-index:5}
-.side .logo{font-family:Georgia,serif;color:var(--gold);letter-spacing:.3em;margin-right:8px}
-.side button{background:none;border:0;color:#C8D2E2;padding:9px 12px;border-radius:6px;white-space:nowrap;cursor:pointer;text-align:left}
-.side button.on{background:var(--navy2);color:#fff;box-shadow:inset 3px 0 var(--gold)}
-.side .grow{flex:1}
-.main{padding:22px 16px 48px;max-width:980px;width:100%}
-.sub{color:var(--muted);margin:0 0 14px}
-.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin-top:14px}
-.bal{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:12px;padding:24px;margin-top:6px;border-bottom:4px solid var(--gold)}
-.bal .n{font-family:Georgia,serif;font-size:2.2rem;color:var(--gold-l)}.bal small{color:#B9C4D6}
-.grid{display:grid;gap:14px;grid-template-columns:1fr}
-.plastic{background:linear-gradient(120deg,#1B1B1B,#3A3A3A);color:#EEE;border-radius:12px;padding:16px;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;margin-top:14px}
-.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.95rem}
-.row:last-child{border:0}.row small{display:block;color:var(--muted)}.pos{color:var(--green)}.neg{color:var(--red)}
-.flash{background:var(--gold-l);border-left:4px solid var(--gold);padding:10px 14px;border-radius:6px;margin-bottom:12px;color:var(--navy)}
-.acts{display:flex;gap:8px;flex-wrap:wrap}.acts .btn{width:auto;margin:0;padding:10px 16px}
-.foot{color:var(--muted);font-size:.8rem;margin-top:26px}
-@media(min-width:800px){
- .auth{grid-template-columns:1.1fr 1fr}.hero{padding:80px 60px}.hero h1{font-size:3.1rem}.float{display:flex}
- .shell{grid-template-columns:250px 1fr}
- .side{flex-direction:column;align-items:stretch;overflow-y:auto;height:100vh;padding:24px 14px}
- .side .logo{margin:0 0 20px 8px}.main{padding:34px 40px}.grid{grid-template-columns:1.4fr 1fr}
-}
-@media(prefers-reduced-motion:no-preference){.card,.bal,.box{animation:in .3s ease-out}@keyframes in{from{opacity:0}to{opacity:1}}.float{animation:fl 6s ease-in-out infinite}@keyframes fl{50%{transform:rotate(-6deg) translateY(-12px)}}}
-@media print{.side,.acts{display:none}.shell{display:block}}
-</style>
-</head>
-<body>
-<div id="app"></div>
-<script>
+# -*- coding: utf-8 -*-
+'''BANCO AURORA | Simulador bancario educativo. Sin servidor ni dinero real.'''
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog, filedialog
+import sqlite3, hashlib, secrets, csv, json, os, webbrowser, urllib.parse, subprocess, sys, math, re
+from pathlib import Path
+from datetime import datetime, timedelta
  
-/* ===== Lógica ===== */
-const KEY='aurora_web_v1',MAX_ATTEMPTS=3,LOCK_MIN=15,QUERY_FEE=20,EXT_FEE=35,FX=17.2;
-const CREDIT=['Depósito','Depósito inicial','Cashback','Transferencia recibida'],LIMITED=['Retiro','Transferencia enviada','Pago de servicio','Inversión'];
-const money=t=>{const v=Number(String(t).replace(/,/g,'').trim());if(String(t).trim()===''||!isFinite(v))throw new Error('Escribe un número válido.');return v};
-const WEAK=['1234','4321','0000','2580','1122','6969','1004','2000','2020'];
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const peso=n=>n.toLocaleString('es-MX',{style:'currency',currency:'MXN'})+' MXN';
-const now=()=>new Date().toLocaleString('es-MX');
-const digits=n=>{const a=new Uint32Array(n);crypto.getRandomValues(a);return [...a].map(x=>x%10).join('')};
-const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+APP_DIR=Path.home()/'.banco_aurora_nuevo'; APP_DIR.mkdir(exist_ok=True)
+DB_FILE=APP_DIR/'aurora.sqlite3'
+BG='#F4F1E9'; WHITE='#FFFFFF'; INK='#17191E'; GOLD='#B28A35'; GOLD_LIGHT='#E8D7A8'; MUTED='#72757C'; GREEN='#247A58'; RED='#A83232'; LINE='#E2DED4'
  
-function pinProblem(p,allowWeak){
-  if(!/^\d{4,}$/.test(p))return 'El NIP debe tener al menos 4 dígitos (solo números).';
-  if(allowWeak)return null;
-  if(WEAK.includes(p))return 'Ese NIP es demasiado común (por ejemplo 1234). Elige otro.';
-  for(let k=1;k<=p.length/2;k++)if(p.length%k===0&&p===p.slice(0,k).repeat(p.length/k))return 'No uses NIP repetidos como 0000, 1212 o 123123.';
-  const d=[...p].slice(1).map((c,i)=>(+c-+p[i]+10)%10);
-  if(d.every(x=>x===1)||d.every(x=>x===9))return 'No uses secuencias como 1234, 4321 o 7890.';
-  return null;
-}
-function luhnOk(n){let t=0;[...n].reverse().forEach((c,i)=>{let d=+c;if(i%2){d*=2;if(d>9)d-=9}t+=d});return t%10===0}
-function newCardNumber(){const p='5'+digits(14);for(let d=0;d<10;d++)if(luhnOk(p+d))return p+d}
+QUERY_FEE=20.0; EXTERNAL_FEE=35.0; MAX_ATTEMPTS=3; LOCK_MINUTES=15
+CREDIT_KINDS=('Depósito','Depósito inicial','Cashback','Ajuste positivo','Reembolso','Ahorro liberado','Transferencia recibida')
+LIMITED_KINDS=('Retiro','Transferencia enviada','Pago de servicio','Inversión')
+WEAK_PINS={'1234','4321','0000','2580','1122','6969','1004','2000','2020'}
  
-function sha256(msg){ // respaldo para navegadores sin crypto.subtle (p. ej. abrir por http sin localhost)
-  const rr=(x,n)=>(x>>>n)|(x<<(32-n)),K=[],H=[];let p=0;
-  for(let n=2;p<64;n++){let ok=true;for(let d=2;d*d<=n;d++)if(n%d===0){ok=false;break}
-    if(ok){if(p<8)H[p]=(Math.pow(n,.5)%1)*4294967296|0;K[p++]=(Math.pow(n,1/3)%1)*4294967296|0}}
-  const b=[...new TextEncoder().encode(msg)],l=b.length*8;b.push(128);while(b.length%64!==56)b.push(0);
-  for(let i=7;i>=0;i--)b.push(i>3?0:(l>>>(i*8))&255);
-  const w=new Array(64);
-  for(let o=0;o<b.length;o+=64){
-    for(let i=0;i<16;i++)w[i]=(b[o+4*i]<<24)|(b[o+4*i+1]<<16)|(b[o+4*i+2]<<8)|b[o+4*i+3];
-    for(let i=16;i<64;i++){const s0=rr(w[i-15],7)^rr(w[i-15],18)^(w[i-15]>>>3),s1=rr(w[i-2],17)^rr(w[i-2],19)^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0}
-    let [a,bb,c,d,e,f,g,h]=H;
-    for(let i=0;i<64;i++){const t1=(h+(rr(e,6)^rr(e,11)^rr(e,25))+((e&f)^(~e&g))+K[i]+w[i])|0,t2=((rr(a,2)^rr(a,13)^rr(a,22))+((a&bb)^(a&c)^(bb&c)))|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=bb;bb=a;a=(t1+t2)|0}
-    [a,bb,c,d,e,f,g,h].forEach((v,i)=>H[i]=(H[i]+v)|0);
-  }
-  return H.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
-}
-async function hashPin(pin,salt){
-  if(window.crypto&&crypto.subtle){
-    const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits']);
-    return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(salt),iterations:140000,hash:'SHA-256'},k,256));
-  }
-  let h=pin+salt;for(let i=0;i<2000;i++)h=sha256(h+pin);return h;
-}
-//--UI--
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY))||{};return{users:d.users||[],tx:d.tx||[],logs:d.logs||[],alerts:d.alerts||[],inv:d.inv||[],sched:d.sched||[]}}catch{return{users:[],tx:[],logs:[],alerts:[],inv:[],sched:[]}}}
-let db=load(),storageOk=true;
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch{storageOk=false}}
-const log=(uid,action,detail)=>{db.logs.push({uid,action,detail,at:now()});save()};
-async function createUser(name,username,pin,initial,allowWeak){
-  name=name.trim();username=username.trim();
-  if(!name||!username)throw new Error('El nombre y el usuario son obligatorios.');
-  const pp=pinProblem(pin,allowWeak);if(pp)throw new Error(pp);
-  if(!isFinite(initial)||initial<0)throw new Error('El saldo inicial debe ser un número válido, mayor o igual a cero.');
-  if(db.users.some(u=>u.username.toLowerCase()===username.toLowerCase()))throw new Error('Ese nombre de usuario ya existe.');
-  const salt=digits(16),num=newCardNumber(),d=new Date();
-  const u={id:Date.now()+Math.floor(Math.random()*1000),name,username,account:'AU'+digits(10),clabe:'646'+digits(15),salt,pinhash:await hashPin(pin,salt),
-    balance:0,fails:0,lockedUntil:0,blocked:false,limit:10000,cur:'MXN',
-    card:{kind:'Débito',last4:num.slice(-4),holder:name.toUpperCase(),expiry:String(d.getMonth()+1).padStart(2,'0')+'/'+String((d.getFullYear()+4)%100).padStart(2,'0')}};
-  db.users.push(u);
-  if(initial>0){u.balance=initial;db.tx.push({uid:u.id,kind:'Depósito inicial',amount:initial,fee:0,detail:'Saldo inicial de demostración',at:now()})}
-  save();return u;
-}
-async function login(id,pin){
-  id=id.trim();const u=db.users.find(x=>x.username.toLowerCase()===id.toLowerCase()||x.account===id||x.clabe===id);
-  if(!u)throw new Error('Verifica tus datos. La cuenta demo usa usuario demo y NIP 1234.');
-  if(u.lockedUntil>Date.now()){log(u.id,'Acceso rechazado','Cuenta con límite de intentos');throw new Error(`Superaste el límite de intentos. Intenta de nuevo en ${Math.ceil((u.lockedUntil-Date.now())/60000)} minuto(s).`)}
-  if(await hashPin(pin,u.salt)!==u.pinhash){
-    u.fails++;
-    if(u.fails>=MAX_ATTEMPTS){u.fails=0;u.lockedUntil=Date.now()+LOCK_MIN*60000;log(u.id,'Acceso limitado',MAX_ATTEMPTS+' intentos fallidos');throw new Error(`Superaste ${MAX_ATTEMPTS} intentos fallidos. La cuenta queda limitada por ${LOCK_MIN} minutos.`)}
-    log(u.id,'Acceso rechazado','NIP incorrecto');throw new Error(`Verifica tus datos. Intentos restantes: ${MAX_ATTEMPTS-u.fails}.`);
-  }
-  if(u.blocked)throw new Error('Esta cuenta está bloqueada.');
-  u.fails=0;u.lockedUntil=0;log(u.id,'Inicio de sesión','Acceso web');return u;
-}
-function addTx(u,kind,amount,detail,fee=0){
-  if(!isFinite(amount)||!isFinite(fee)||amount<=0||fee<0)throw new Error('El importe debe ser mayor que cero.');
-  const credit=CREDIT.includes(kind);
-  if(!credit&&u.balance+1e-8<amount+fee)throw new Error('Saldo insuficiente.');
-  const day=new Date().toDateString();
-  if(LIMITED.includes(kind)){
-    const spent=db.tx.filter(t=>t.uid===u.id&&t.day===day&&LIMITED.includes(t.kind)).reduce((s,t)=>s+t.amount+(t.fee||0),0);
-    if(spent+amount+fee>(u.limit||10000))throw new Error('La operación supera tu límite diario.');
-  }
-  u.balance=Math.round((u.balance+(credit?amount:-amount-fee))*100)/100;
-  db.tx.push({uid:u.id,kind,amount,fee,detail,at:now(),day,ts:Date.now()});
-  db.alerts.push({uid:u.id,msg:(`${kind} por ${peso(amount)}`+(fee?` (comisión ${peso(fee)})`:'')+` · ${detail}`).slice(0,140),at:now(),seen:false});
-  save();
-}
-function transfer(u,dest,amount,note){
-  dest=dest.trim();if(!dest)throw new Error('Escribe el destinatario.');
-  const t=db.users.find(x=>x.account===dest||x.clabe===dest);
-  if(t&&t.id===u.id)throw new Error('No puedes transferir a tu propia cuenta.');
-  if(t&&t.blocked)throw new Error('La cuenta destino no puede recibir transferencias.');
-  const fee=t?0:EXT_FEE;
-  addTx(u,'Transferencia enviada',amount,`${note} | Destino: ${dest}`,fee);
-  if(t)addTx(t,'Transferencia recibida',amount,`${note} | Origen: ${u.account}`);
-  return{fee,internal:!!t};
-}
-function consult(u){addTx(u,'Comisión por consulta',QUERY_FEE,'Consulta de saldo');return u.balance}
-//--VIEWS--
-const A=document.getElementById('app'),$=s=>document.querySelector(s);let me=null,view='home',flash='';
-const field=(id,l,t='text',x='')=>t==='select'?`<label for="${id}">${l}</label><select id="${id}">${x.map(o=>`<option>${o}</option>`).join('')}</select>`:`<label for="${id}">${l}</label><input id="${id}" type="${t}" ${x}>`;
-const bal=u=>u.cur==='USD'?`$${(u.balance/FX).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})} USD`:peso(u.balance);
-const sign=t=>CREDIT.includes(t.kind)?'<span class="pos">+':'<span class="neg">−';
-const unread=()=>db.alerts.filter(a=>a.uid===me.id&&!a.seen).length;
-function auth(mode,msg=''){
-  stopCam();const reg=mode==='reg';
-  A.innerHTML=`<div class="auth"><section class="hero"><div class="logo">AURORA</div><h1>${reg?'Abre tu cuenta en minutos.':'Control claro. Finanzas bajo tu mirada.'}</h1>
-  <ul class="feat"><li>Tarjeta de débito ligada a tu cuenta</li><li>Alertas por cada movimiento</li><li>Transferencias, ahorro e inversión simulados</li></ul>
-  <div class="float" aria-hidden="true"><span class="serif" style="letter-spacing:.3em">AURORA</span><span style="font-size:1.15rem;letter-spacing:.14em">5120 •••• •••• 0000</span><span>TITULAR · 12/30</span></div></section>
-  <section class="panel"><div class="box"><h2>${reg?'Abrir una cuenta':'Bienvenido'}</h2><p class="sub">${reg?'Tu tarjeta de débito quedará ligada a la cuenta.':'Ingresa con tu usuario, número de cuenta o CLABE.'}</p>
-  <form id="f" novalidate>${reg?field('n','Nombre completo','text','autocomplete="name"')+field('u','Nombre de usuario','text','autocapitalize="none"')+field('p','NIP de 4 o más dígitos','password','inputmode="numeric" autocomplete="new-password"')+'<div class="hint" id="pm">Evita NIP fáciles como 1234, 0000 o secuencias.</div><label class="chk"><input type="checkbox" id="sp"> Mostrar NIP</label>'+field('i','Saldo inicial de demostración','text','inputmode="decimal" value="0"'):field('id','Usuario, cuenta o CLABE','text','autocapitalize="none" autocomplete="username"')+field('p','NIP','password','inputmode="numeric" autocomplete="current-password"')+'<label class="chk"><input type="checkbox" id="sp"> Mostrar NIP</label>'}
-  <div class="err" role="alert">${esc(msg)}</div><button class="btn gold big">${reg?'Crear cuenta':'Entrar a mi cuenta'}</button></form>
-  <button class="btn ghost" id="sw" type="button">${reg?'Ya tengo cuenta':'Crear cuenta'}</button>${storageOk?'':'<p class="err">Este navegador no permite guardar datos.</p>'}<p class="foot">Simulador educativo · los datos se guardan solo en este dispositivo.</p></div></section></div>`;
-  $('#sw').onclick=()=>auth(reg?'login':'reg');
-  $('#sp').onchange=e=>{$('#p').type=e.target.checked?'text':'password'};
-  if(reg)$('#p').oninput=()=>{const v=$('#p').value,pr=v?pinProblem(v):null,pm=$('#pm');pm.textContent=v?(pr||'✔ NIP aceptado'):'Evita NIP fáciles como 1234, 0000 o secuencias.';pm.style.color=v?(pr?'var(--red)':'var(--green)'):''};
-  $('#f').onsubmit=async e=>{e.preventDefault();const er=$('.err');
-    try{if(reg){const u=await createUser($('#n').value,$('#u').value,$('#p').value,money($('#i').value||0));log(u.id,'Cuenta creada','Registro web');auth('login','Cuenta creada. Ya puedes entrar con tu usuario y NIP.')}
-        else{me=await login($('#id').value,$('#p').value);view='home';flash='';shell()}}catch(x){er.textContent=x.message;const p=$('#p');if(p)p.value=''}};
-}
-const NAV=[['home','Resumen'],['transfer','Transferir'],['cash','Depósitos y retiros'],['moves','Movimientos'],['query','Consulta de saldo'],['alerts','Alertas'],['reports','Reportes de gastos'],['savings','Ahorro y presupuesto'],['invest','Cuenta de inversión'],['pay','Pagar servicios'],['joint','Cuentas conjuntas'],['cards','Tarjetas vinculadas'],['sched','Transferencias programadas'],['cashback','Cashback'],['fx','Cambio MXN / USD'],['tickets','Tickets y exportación'],['logs','Historial de accesos'],['voice','Comando de voz'],['vision','Visión artificial'],['chat','Atención al cliente'],['profile','Perfil y seguridad']];
-function go(v,f=''){view=v;flash=f;shell()}
-function shell(){
-  stopCam();me=db.users.find(x=>x.id===me.id);runSched(me);const n=unread();
-  A.innerHTML=`<div class="shell"><nav class="side" aria-label="Menú"><div class="logo">AURORA</div>${NAV.map(([k,t])=>`<button data-v="${k}" class="${k===view?'on':''}">${t}${k==='alerts'&&n?` (${n})`:''}</button>`).join('')}<span class="grow"></span><button id="out">Cerrar sesión</button></nav><main class="main" id="m"></main></div>`;
-  document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>go(b.dataset.v));
-  $('#out').onclick=()=>{log(me.id,'Cierre de sesión','Sesión cerrada');me=null;auth('login')};
-  const m=$('#m');m.innerHTML=(flash?`<div class="flash" role="status">${esc(flash)}</div>`:'')+views[view]();flash='';wire[view]&&wire[view](m);
-}
-const head=(t,s)=>`<h2>${t}</h2><p class="sub">${s}</p>`;
-const formHtml=(fs,btn)=>`<div class="card" style="max-width:480px"><form id="f" novalidate>${fs}<div class="err" role="alert"></div><button class="btn gold">${btn}</button></form></div>`;
-const onForm=fn=>m=>{m.querySelector('#f').onsubmit=async e=>{e.preventDefault();try{await fn()}catch(x){m.querySelector('.err').textContent=x.message}}};
-const rowsHtml=l=>l.length?l.map(t=>`<div class="row"><span>${esc(t.kind)}<small>${esc(t.at)} · ${esc(t.detail)}</small></span><span>${sign(t)}${peso(t.amount)}</span></span></div>`).join(''):'<p class="sub">Aún no hay movimientos.</p>';
-const mine=()=>db.tx.filter(t=>t.uid===me.id);
-const views={
- home:()=>`${unread()?`<div class="flash">Tienes ${unread()} movimiento(s) nuevo(s) en tu cuenta. <a href="#" data-v2="alerts">Ver alertas</a></div>`:''}${head('Hola, '+esc(me.name.split(' ')[0]),'Cuenta '+esc(me.account))}
-  <div class="bal"><small>Saldo disponible</small><div class="n">${bal(me)}</div><small>Saldo local de demostración</small></div>
-  <div class="acts card"><button class="btn" data-v2="transfer">Transferir</button><button class="btn ghost" data-v2="cash">Depositar o retirar</button><button class="btn ghost" data-v2="pay">Pagar servicio</button></div>
-  <div class="grid"><div class="card"><h3 class="serif" style="margin:0 0 6px">Actividad reciente</h3>${rowsHtml(mine().slice(-6).reverse())}</div>
-  <div><div class="plastic"><span class="serif">AURORA · Débito</span><span style="letter-spacing:.15em">•••• •••• •••• ${esc(me.card.last4)}</span><span>${esc(me.card.holder)} · ${esc(me.card.expiry)}</span></div>
-  <div class="card"><div class="row"><span>CLABE</span><span>${esc(me.clabe)}</span></div></div></div></div><p class="foot">Simulación local · no conectada a ningún banco</p>`,
- transfer:()=>head('Transferir','Cuentas Aurora: sin comisión. Otros bancos: '+peso(EXT_FEE)+'.')+formHtml(field('d','Cuenta o CLABE del destinatario')+field('a','Importe MXN','text','inputmode="decimal"')+field('c','Concepto','text','value="Transferencia personal"'),'Revisar y transferir'),
- cash:()=>head('Depósitos y retiros','Operaciones de demostración.')+formHtml(field('k','Tipo','select',['Depósito','Retiro'])+field('a','Importe MXN','text','inputmode="decimal"')+field('c','Concepto','text','value="Operación de demostración"'),'Confirmar operación'),
- moves:()=>head('Movimientos','Historial de tu cuenta.')+`<div class="card">${rowsHtml(mine().slice().reverse())}</div><div class="acts card"><button class="btn ghost" id="csv">Exportar CSV</button></div>`,
- query:()=>head('Consulta de saldo','Cada consulta tiene una comisión de '+peso(QUERY_FEE)+'.')+`<div class="card" style="max-width:480px"><button class="btn gold" id="q">Consultar saldo</button><div class="err" role="alert"></div></div>`,
- alerts:()=>head('Alertas de movimientos','Un aviso por cada operación de tu cuenta.')+`<div class="card">${db.alerts.filter(a=>a.uid===me.id).slice().reverse().map(a=>`<div class="row"><span>${esc(a.msg)}<small>${esc(a.at)}</small></span><span>${a.seen?'':'<b>Nueva</b>'}</span></div>`).join('')||'<p class="sub">Sin alertas.</p>'}</div><div class="acts card"><button class="btn ghost" id="read">Marcar todas como leídas</button></div>`,
- pay:()=>head('Pagar servicios','Pago de servicio simulado.')+formHtml(field('s','Servicio','select',['Agua','TV','Teléfono','Internet','Electricidad'])+field('r','Referencia del servicio')+field('a','Importe MXN','text','inputmode="decimal"'),'Registrar pago'),
- cashback:()=>head('Cashback','Calcula tu cashback del 1% o 2%.')+formHtml(field('a','Importe de compra MXN','text','inputmode="decimal"')+field('t','Porcentaje','select',['1%','2%']),'Calcular y registrar'),
- fx:()=>head('Cambio MXN / USD','Tipo de cambio de ejemplo ($'+FX+' MXN por USD), no es cotización en tiempo real.')+formHtml(field('a','Cantidad','text','inputmode="decimal" value="100"')+field('k','Conversión','select',['MXN a USD','USD a MXN']),'Convertir')+'<div class="card" id="res" style="max-width:480px">Resultado: —</div>',
- profile:()=>head('Perfil y seguridad','Usuario: '+esc(me.username)+' · Cuenta: '+esc(me.account))+formHtml(field('l','Límite diario MXN','text','inputmode="decimal" value="'+(me.limit||10000)+'"')+field('cu','Moneda principal','select',['MXN','USD'])+field('o','NIP actual (solo para cambiarlo)','password','inputmode="numeric"')+field('n','Nuevo NIP (opcional)','password','inputmode="numeric"')+field('so','Sonido del teclado','select',['Activado','Desactivado'])+field('vo','Comandos de voz','select',['Desactivado','Activado'])+field('fa','Visión artificial (cámara)','select',['Desactivado','Activado']),'Guardar perfil')
-};
-const wire={
- home:m=>m.querySelectorAll('[data-v2]').forEach(b=>b.onclick=e=>{e.preventDefault();go(b.dataset.v2)}),
- transfer:onForm(()=>{const a=money($('#a').value),d=$('#d').value.trim();if(a<=0)throw new Error('El importe debe ser mayor que cero.');if(!d)throw new Error('Escribe el destinatario.');
-   const t=db.users.find(x=>x.account===d||x.clabe===d);if(t&&t.id===me.id)throw new Error('No puedes transferir a tu propia cuenta.');const fee=t?0:EXT_FEE;
-   if(!confirm(`Destino: ${d}\nTipo: ${t?'Cuenta Aurora':'Otro banco'}\nImporte: ${peso(a)}\nComisión: ${peso(fee)}\nTotal: ${peso(a+fee)}\n\n¿Confirmar?`))return;
-   const r=transfer(me,d,a,$('#c').value);go('home',`Transferencia simulada registrada. Importe ${peso(a)}, comisión ${peso(r.fee)}.`)}),
- cash:onForm(()=>{const k=$('#k').value,a=money($('#a').value);addTx(me,k,a,$('#c').value||k);go('home',`${k} registrado por ${peso(a)}.`)}),
- moves:()=>{$('#csv').onclick=()=>{const q=s=>'"'+String(s).replace(/"/g,'""')+'"',c='\ufeffFecha,Operación,Importe,Comisión,Detalle\n'+mine().map(t=>[t.at,t.kind,t.amount,t.fee||0,t.detail].map(q).join(',')).join('\n');
-   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/csv'}));a.download='historial_aurora.csv';a.click();log(me.id,'Exportación CSV','historial')}},
- query:m=>{$('#q').onclick=()=>{if(!confirm('Se cobrará '+peso(QUERY_FEE)+'. ¿Continuar?'))return;try{go('home','Saldo disponible: '+peso(consult(me))+'. Comisión cobrada: '+peso(QUERY_FEE)+'.')}catch(x){m.querySelector('.err').textContent=x.message}}},
- alerts:()=>{$('#read').onclick=()=>{db.alerts.forEach(a=>{if(a.uid===me.id)a.seen=true});save();go('alerts')}},
- pay:onForm(()=>{const a=money($('#a').value);if(!$('#r').value.trim())throw new Error('La referencia es obligatoria.');addTx(me,'Pago de servicio',a,`${$('#s').value} · referencia ${$('#r').value.trim()}`);go('home',`Pago de ${$('#s').value} registrado por ${peso(a)}.`)}),
- cashback:onForm(()=>{const a=money($('#a').value);if(a<=0)throw new Error('La compra debe ser mayor que cero.');const c=Math.round(a*($('#t').value==='1%'?.01:.02)*100)/100;
-   if(c<=0)throw new Error('El importe es muy pequeño para generar cashback.');if(!confirm(`Cashback: ${peso(c)}. ¿Registrarlo en la cuenta demo?`))return;addTx(me,'Cashback',c,`Cashback ${$('#t').value} sobre compra ${peso(a)}`);go('home','Cashback registrado: '+peso(c)+'.')}),
- fx:onForm(()=>{const a=money($('#a').value);if(a<0)throw new Error('La cantidad no puede ser negativa.');const m=$('#k').value==='MXN a USD';
-   $('#res').textContent='Resultado: '+(m?a/FX:a*FX).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+(m?' USD':' MXN')}),
- profile:m=>{$('#cu').value=me.cur||'MXN';$('#so').value=me.sound===false?'Desactivado':'Activado';$('#vo').value=me.voice?'Activado':'Desactivado';$('#fa').value=me.face?'Activado':'Desactivado';onForm(async()=>{const l=money($('#l').value);if(l<=0)throw new Error('El límite debe ser positivo.');
-   const nn=$('#n').value;if(nn){const pp=pinProblem(nn);if(pp)throw new Error(pp);if(await hashPin($('#o').value,me.salt)!==me.pinhash)throw new Error('NIP actual incorrecto.');me.salt=digits(16);me.pinhash=await hashPin(nn,me.salt);log(me.id,'NIP cambiado','Cambio realizado')}
-   me.limit=l;me.cur=$('#cu').value;me.sound=$('#so').value==='Activado';me.voice=$('#vo').value==='Activado';me.face=$('#fa').value==='Activado';save();log(me.id,'Perfil actualizado','Preferencias guardadas');go('profile','Perfil guardado.')})(m)}
-};
-/* ===== Módulos adicionales ===== */
-const EXPENSES=['Retiro','Transferencia enviada','Pago de servicio','Inversión','Ahorro apartado','Comisión por consulta'],RATES={Conservadora:.05,Equilibrada:.09,Crecimiento:.13};
-const sav=u=>u.sav||(u.sav={name:'Mi meta',target:5000,saved:0,budget:8000});
-function runSched(u){let ch=false;db.sched.filter(s=>s.uid===u.id&&s.status==='Pendiente'&&s.at<=Date.now()).forEach(s=>{try{transfer(u,s.dest,s.amount,'Programada: '+s.note);s.status='Ejecutada'}catch(e){s.status='No ejecutada: '+e.message}ch=true;log(u.id,'Transferencia programada',s.status)});if(ch)save()}
-let ac;function beep(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=880;g.gain.value=.04;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+.03)}catch{}}
-document.addEventListener('keydown',e=>{if((!me||me.sound!==false)&&(e.key.length===1||e.key==='Backspace'))beep()});
-const ticket=()=>{const t=mine().slice(-1)[0];return `BANCO AURORA | COMPROBANTE DE DEMOSTRACION\nTitular: ${me.name}\nCuenta: ${me.account}\nFecha: ${now()}\n`+(t?`${t.kind}\nImporte: ${peso(t.amount)}\nComision: ${peso(t.fee||0)}\nDetalle: ${t.detail}\n`:'Resumen de cuenta\n')+`Saldo actual: ${peso(me.balance)}\nEste documento no es comprobante bancario real.\n`};
-const dl=(n,c,t)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()};
-const list=(l,f,empty)=>l.length?l.map(f).join(''):`<p class="sub">${empty}</p>`;
-Object.assign(views,{
- reports:()=>{const f=d=>{const since=Date.now()-d*864e5,m={};mine().filter(t=>t.ts>=since&&EXPENSES.includes(t.kind)).forEach(t=>m[t.kind]=(m[t.kind]||0)+t.amount+(t.fee||0));const tot=Object.values(m).reduce((a,b)=>a+b,0);return `<div class="card"><h3 class="serif" style="margin:0">${d===7?'Últimos 7 días':'Últimos 30 días'}</h3><div style="font-size:1.3rem;font-weight:700;margin:6px 0">Gastos registrados: ${peso(tot)}</div>${Object.entries(m).map(([k,v])=>`<div class="row"><span>${k}</span><span>${peso(v)}</span></div>`).join('')}</div>`};return head('Reportes de gastos','Resumen semanal y mensual.')+f(7)+f(30)+'<div class="acts card"><button class="btn ghost" id="csv">Exportar CSV</button></div>'},
- savings:()=>{const s=sav(me),p=Math.min(100,s.target?s.saved/s.target*100:0);return head('Ahorro y presupuesto','Fija una meta y aporta a ella.')+`<div class="card" style="max-width:480px"><b>${esc(s.name)}</b> · ${peso(s.saved)} de ${peso(s.target)}<div style="background:#E9E5D8;border-radius:99px;height:10px;margin-top:8px"><div style="width:${p}%;height:10px;border-radius:99px;background:var(--gold)"></div></div><div class="hint">${p.toFixed(0)}% alcanzado · Presupuesto mensual ${peso(s.budget)}</div></div>`+formHtml(field('nm','Nombre de la meta','text','value="'+esc(s.name)+'"')+field('t','Objetivo MXN','text','value="'+s.target+'"')+field('a','Aportación a ahorro MXN','text','value="0"')+field('b','Presupuesto mensual MXN','text','value="'+s.budget+'"'),'Guardar plan')},
- invest:()=>head('Cuenta de inversión','Rendimientos ilustrativos, no son una oferta real.')+formHtml(field('p','Producto','select',Object.keys(RATES))+field('a','Importe MXN','text','inputmode="decimal"')+field('d','Plazo en días','text','value="30"'),'Simular inversión')+`<div class="card">${list(db.inv.filter(i=>i.uid===me.id).reverse(),i=>`<div class="row"><span>${esc(i.p)} · ${i.d} días<small>${esc(i.at)}</small></span><span>${peso(i.amount)}</span></div>`,'Aún no tienes inversiones.')}</div>`,
- joint:()=>head('Cuentas conjuntas','Registro local de cotitulares; no crea derechos bancarios reales.')+formHtml(field('n','Nombre del cotitular'),'Agregar cotitular')+`<div class="card">${list((me.joint||[]).slice().reverse(),j=>`<div class="row"><span>${esc(j.name)}<small>${esc(j.at)}</small></span></div>`,'Sin cotitulares.')}</div>`,
- sched:()=>head('Transferencias programadas','Se ejecutan al abrir la página después de la fecha. A otro banco: '+peso(EXT_FEE)+'.')+formHtml(field('d','Cuenta o CLABE del destinatario')+field('a','Importe MXN','text','inputmode="decimal"')+field('c','Concepto','text','value="Pago programado"')+field('w','Fecha y hora','datetime-local'),'Programar')+`<div class="card">${list(db.sched.filter(s=>s.uid===me.id).reverse(),s=>`<div class="row"><span>${esc(s.dest)}<small>${new Date(s.at).toLocaleString('es-MX')} · ${esc(s.status)}</small></span><span>${peso(s.amount)}</span></div>`,'Sin programaciones.')}</div>`,
- cards:()=>head('Tarjetas vinculadas','Tu débito está ligado a la cuenta. Simulación: solo se guardan los últimos 4 dígitos; no uses datos de una tarjeta real.')+`<div class="card"><div class="row"><span>Débito<small>${esc(me.card.holder)}</small></span><span>•••• ${esc(me.card.last4)} · ${esc(me.card.expiry)}</span></div>${(me.cards||[]).map((c,i)=>`<div class="row"><span>Crédito<small>${esc(c.holder)}</small></span><span>•••• ${esc(c.last4)} · ${esc(c.expiry)} <button class="btn ghost" data-un="${i}" style="display:inline;width:auto;margin:0 0 0 8px;padding:4px 10px">Quitar</button></span></div>`).join('')}</div>`+formHtml(field('n','Número de tarjeta de crédito','text','inputmode="numeric"')+field('h','Titular','text','value="'+esc(me.name)+'"')+field('x','Vigencia (MM/AA)'),'Vincular tarjeta de crédito'),
- tickets:()=>head('Tickets y exportación','Comprobante del último movimiento.')+`<div class="card"><pre style="white-space:pre-wrap;margin:0;font:inherit">${esc(ticket())}</pre></div><div class="acts card"><button class="btn ghost" id="t1">Guardar TXT</button><button class="btn ghost" id="t2">PDF / Imprimir</button><button class="btn ghost" id="t3">Código QR</button><button class="btn ghost" id="t4">WhatsApp</button><button class="btn ghost" id="t5">Correo</button><button class="btn ghost" id="csv">Exportar CSV</button></div><div id="qr" class="card" hidden></div>`,
- logs:()=>head('Historial de accesos','Registro de actividad de tu cuenta.')+`<div class="card">${list(db.logs.filter(l=>l.uid===me.id).slice(-100).reverse(),l=>`<div class="row"><span>${esc(l.action)}<small>${esc(l.detail)}</small></span><small>${esc(l.at)}</small></div>`,'Sin registros.')}</div>`,
- voice:()=>head('Comando de voz','Solo navegación: por seguridad no se ejecutan operaciones de dinero por voz.')+`<div class="card" style="max-width:480px"><p class="sub">Di, por ejemplo: “movimientos”, “ahorro”, “inversión”, “servicios” o “perfil”.</p><button class="btn gold" id="mic">Escuchar</button><div class="err" id="vo2" role="alert"></div></div>`,
- chat:()=>head('Atención al cliente','Ayuda automática local, sin servidor.')+`<div class="card" id="cb" style="max-height:50vh;overflow:auto"><p><b>Aurora:</b> Puedo ayudarte con saldo, transferencias, NIP, ahorro, inversiones, comisiones, tarjetas, alertas y servicios.</p></div><form id="f" class="card" style="display:flex;gap:8px"><input id="q" placeholder="Escribe tu pregunta" aria-label="Pregunta"><button class="btn gold" style="width:auto;margin:0">Enviar</button></form>`
-});
-Object.assign(wire,{
- reports:wire.moves,
- savings:onForm(()=>{const s=sav(me),t=money($('#t').value),a=money($('#a').value),b=money($('#b').value);if(t<=0||a<0||b<=0)throw new Error('Objetivo y presupuesto deben ser positivos; la aportación no puede ser negativa.');if(a)addTx(me,'Ahorro apartado',a,'Aportación a meta');Object.assign(s,{name:$('#nm').value.trim()||'Mi meta',target:t,budget:b,saved:s.saved+a});save();go('savings','Meta y presupuesto guardados.')}),
- invest:onForm(()=>{const a=money($('#a').value),d=Math.trunc(money($('#d').value)),p=$('#p').value;if(d<1||d>3650)throw new Error('El plazo debe estar entre 1 y 3650 días.');addTx(me,'Inversión',a,`${p}, ${d} días`);db.inv.push({uid:me.id,p,amount:a,d,at:now()});save();go('invest',`Inversión simulada. Rendimiento simple estimado: ${peso(a*RATES[p]*d/365)}. No está garantizado.`)}),
- joint:onForm(()=>{const n=$('#n').value.trim();if(!n)throw new Error('Escribe el nombre.');(me.joint=me.joint||[]).push({name:n,at:now()});save();log(me.id,'Cotitular registrado',n);go('joint','Cotitular agregado.')}),
- sched:onForm(()=>{const a=money($('#a').value),at=new Date($('#w').value).getTime(),d=$('#d').value.trim();if(!d||!(a>0)||!isFinite(at)||at<=Date.now())throw new Error('Fecha futura, importe positivo y destinatario obligatorio.');db.sched.push({uid:me.id,dest:d,amount:a,note:$('#c').value,at,status:'Pendiente'});save();go('sched','Transferencia programada. Si la cuenta no pertenece a Aurora se cobrará comisión de '+peso(EXT_FEE)+'.')}),
- cards:m=>{m.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{if(confirm('¿Desvincular la tarjeta?')){me.cards.splice(+b.dataset.un,1);save();log(me.id,'Tarjeta desvinculada','Crédito');go('cards')}});
-  onForm(()=>{const n=$('#n').value.replace(/[\s-]/g,''),x=$('#x').value.trim(),mm=/^(0[1-9]|1[0-2])\/(\d{2})$/.exec(x),h=$('#h').value.trim(),d=new Date();
-   if(!/^\d{13,19}$/.test(n)||!luhnOk(n))throw new Error('Número de tarjeta no válido.');if(!h)throw new Error('Escribe el nombre del titular.');if(!mm)throw new Error('La vigencia debe tener formato MM/AA.');
-   const y=2000+ +mm[2];if(y<d.getFullYear()||(y===d.getFullYear()&&+mm[1]<d.getMonth()+1))throw new Error('La tarjeta está vencida.');if((me.cards||[]).some(c=>c.last4===n.slice(-4)))throw new Error('Esa tarjeta ya está vinculada.');
-   (me.cards=me.cards||[]).push({last4:n.slice(-4),holder:h.toUpperCase(),expiry:x});save();log(me.id,'Tarjeta vinculada','Crédito terminación '+n.slice(-4));go('cards','Tarjeta de crédito vinculada.')})(m)},
- tickets:()=>{wire.moves();$('#t1').onclick=()=>dl('ticket_aurora.txt',ticket(),'text/plain');$('#t2').onclick=()=>window.print();
-  $('#t4').onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(ticket()),'_blank');$('#t5').onclick=()=>{location.href='mailto:?subject='+encodeURIComponent('Ticket Banco Aurora demo')+'&body='+encodeURIComponent(ticket())};
-  $('#t3').onclick=()=>{const show=()=>{const q=$('#qr');q.hidden=false;q.innerHTML='';new QRCode(q,{text:ticket().normalize('NFD').replace(/[\u0300-\u036f]/g,''),width:220,height:220})};if(window.QRCode)return show();
-   const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=show;s.onerror=()=>alert('No se pudo cargar la biblioteca de QR. Revisa tu conexión a internet.');document.head.appendChild(s)}},
- voice:()=>{$('#mic').onclick=()=>{const o=$('#vo2'),SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!me.voice){o.textContent='Activa los comandos de voz en Perfil y seguridad.';return}if(!SR){o.textContent='Tu navegador no soporta reconocimiento de voz (prueba Chrome).';return}
-  const r=new SR();r.lang='es-MX';r.onresult=e=>{const p=e.results[0][0].transcript.toLowerCase();log(me.id,'Comando de voz',p);const mp=[['movimiento','moves'],['historial','moves'],['ahorro','savings'],['inversi','invest'],['servicio','pay'],['perfil','profile'],['seguridad','profile'],['alerta','alerts'],['reporte','reports']].find(([k])=>p.includes(k));mp?go(mp[1]):o.textContent='Escuché: '+p+'. No tiene una acción asociada.'};
-  r.onerror=()=>{o.textContent='No se reconoció. Revisa el micrófono y la conexión.'};r.start()}},
- chat:()=>{$('#f').onsubmit=e=>{e.preventDefault();const q=$('#q').value.trim(),l=q.toLowerCase();if(!q)return;let a;
-  if(/comisi/.test(l))a=`Consulta de saldo: ${peso(QUERY_FEE)}. Transferencia a otro banco: ${peso(EXT_FEE)}. Entre cuentas Aurora no hay comisión.`;
-  else if(/saldo/.test(l)){if(confirm(`Consultar tu saldo tiene una comisión de ${peso(QUERY_FEE)}. ¿Continuar?`)){try{a=`Tu saldo es ${peso(consult(me))}. Se cobró la comisión de consulta de ${peso(QUERY_FEE)}.`}catch(x){a='No se pudo hacer la consulta: '+x.message}}else a='Consulta cancelada. No se cobró comisión.'}
-  else if(/transfer/.test(l))a=`Abre Transferir. A otro banco la comisión es de ${peso(EXT_FEE)}; entre cuentas Aurora no tiene costo.`;
-  else if(/nip|clave/.test(l))a='Puedes cambiar tu NIP en Perfil y seguridad. No se aceptan NIP fáciles como 1234 y tras 3 intentos fallidos la cuenta se limita por unos minutos.';
-  else if(/ahorro|presupuesto/.test(l))a='Abre Ahorro y presupuesto para editar tu meta y límite mensual.';
-  else if(/invers/.test(l))a='En Cuenta de inversión puedes simular un plazo con tasas ilustrativas.';
-  else if(/servicio|agua/.test(l))a='Abre Pagar servicios para simular pagos de agua, TV, teléfono, internet o electricidad.';
-  else if(/tarjeta/.test(l))a='En Tarjetas vinculadas ves tu tarjeta de débito y puedes ligar tarjetas de crédito.';
-  else if(/alerta|aviso/.test(l))a='En Alertas verás un aviso por cada operación de tu cuenta.';
-  else a='Prueba preguntar por saldo, transferencia, NIP, ahorro, inversión, comisiones, tarjetas o servicios.';
-  const c=$('#cb');c.insertAdjacentHTML('beforeend',`<p><b>Tú:</b> ${esc(q)}<br><b>Aurora:</b> ${esc(a)}</p>`);c.scrollTop=c.scrollHeight;$('#q').value='';log(me.id,'Chatbot',q.slice(0,150))}}
-});
-/* ===== Visión artificial (solo detecta rostros; el video no se guarda ni se envía) ===== */
-const cam={stream:null,video:null,raf:0,found:false,name:''};
-function stopCam(){if(cam.raf&&window.cancelAnimationFrame)cancelAnimationFrame(cam.raf);cam.raf=0;if(cam.stream)cam.stream.getTracks().forEach(t=>t.stop());cam.stream=null;cam.video=null}
-let detP=null;
-function getDetector(){return detP||(detP=(async()=>{
-  if(window.FaceDetector){try{const d=new FaceDetector({fastMode:true,maxDetectedFaces:3});return{detect:async v=>(await d.detect(v)).map(f=>({x:f.boundingBox.x,y:f.boundingBox.y,w:f.boundingBox.width,h:f.boundingBox.height}))}}catch{}}
-  try{const V='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14',M=await import(V+'/vision_bundle.mjs'),fs=await M.FilesetResolver.forVisionTasks(V+'/wasm');
-    const d=await M.FaceDetector.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'});
-    return{detect:async v=>d.detectForVideo(v,performance.now()).detections.map(x=>({x:x.boundingBox.originX,y:x.boundingBox.originY,w:x.boundingBox.width,h:x.boundingBox.height}))}}
-  catch{detP=null;throw new Error('No se pudo cargar el detector de rostros. Revisa tu conexión a internet o prueba en Chrome.')}})())}
-async function openCamera(two){ // cámara 1 = la de la computadora; cámara 2 = celular por DroidCam (aparece como una cámara más)
-  const md=navigator.mediaDevices,tmp=await md.getUserMedia({video:true,audio:false});tmp.getTracks().forEach(t=>t.stop()); // da permiso para ver los nombres de las cámaras
-  const devs=(await md.enumerateDevices()).filter(d=>d.kind==='videoinput'),droid=d=>/droidcam/i.test(d.label),d=two?devs.find(droid):devs.find(x=>!droid(x));
-  if(!d)throw new Error(two?'No se encontró DroidCam. Abre la app DroidCam en el celular y el cliente DroidCam en la computadora, conéctalos y vuelve a intentar.':'No se encontró una cámara en la computadora.');
-  return md.getUserMedia({video:{deviceId:{exact:d.deviceId}},audio:false});
-}
-views.vision=()=>head('Visión artificial','Seguridad: detecta si hay un rostro frente a la cámara. Solo detecta rostros, no identifica personas. El video no se guarda ni se envía a ningún servidor.')+`<div class="card" style="max-width:520px">${me.face?field('src','Cámara','select',['Cámara 1 (computadora)','Cámara 2 (celular · DroidCam)'])+'<p class="hint">La cámara 2 usa DroidCam: abre la app en el celular y el cliente DroidCam en la computadora; aparecerá como una cámara más.</p><canvas id="cv" width="640" height="480" style="width:100%;border-radius:8px;background:#0B1F3A"></canvas><button class="btn gold" id="cam">Iniciar cámara</button><button class="btn ghost" id="camx" hidden>Detener y registrar resultado</button>':'<p class="sub">Activa primero la opción de visión artificial en Perfil y seguridad.</p>'}<div class="err" id="vs" role="alert"></div></div>`;
-wire.vision=()=>{if(!me.face)return;const st=$('#vs'),cv=$('#cv'),ctx=cv.getContext('2d');
-  $('#cam').onclick=async()=>{try{st.textContent='';if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Tu navegador no permite usar la cámara aquí. Abre la página con https.');
-    const det=await getDetector();const two=$('#src').value.startsWith('Cámara 2');cam.name=two?'Cámara 2 (celular, DroidCam)':'Cámara 1 (computadora)';cam.stream=await openCamera(two);$('#src').disabled=true;
-    const v=cam.video=document.createElement('video');v.muted=true;v.playsInline=true;v.srcObject=cam.stream;await v.play();cam.found=false;$('#cam').hidden=true;$('#camx').hidden=false;
-    const loop=async()=>{if(!cam.stream)return;if(v.videoWidth){cv.width=v.videoWidth;cv.height=v.videoHeight;ctx.drawImage(v,0,0);let b=[];try{b=await det.detect(v)}catch{st.textContent='El detector no pudo analizar el video.'}
-      if(cam.stream){ctx.strokeStyle='#28B478';ctx.lineWidth=4;b.forEach(r=>{ctx.strokeRect(r.x,r.y,r.w,r.h);cam.found=true})}}
-      if(cam.stream)cam.raf=requestAnimationFrame(loop)};loop()}
-   catch(e){stopCam();$('#src').disabled=false;st.textContent=e.name==='NotAllowedError'?'Permiso de cámara denegado.':e.message}};
-  $('#camx').onclick=()=>{const f=cam.found;stopCam();log(me.id,'Visión artificial',(f?'Rostro detectado':'Sin detección')+' · '+cam.name);go('vision',f?'Resultado: se detectó un rostro.':'Resultado: no se detectó un rostro.')}};
-(async()=>{
-  if(!db.users.length){try{const u=await createUser('Usuario Demo','demo','1234',25000,true);log(u.id,'Sistema','Cuenta de demostración creada')}catch(e){console.error(e)}}
-  auth('login');
-})();
-</script>
-</body>
-</html>
+def stamp(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+def pesos(n): return f'${float(n):,.2f} MXN'
+def pin_hash(pin,salt=None):
+    salt=salt or secrets.token_hex(16)
+    return salt,hashlib.pbkdf2_hmac('sha256',pin.encode(),salt.encode(),140000).hex()
+ 
+def num(text):
+    """Convierte texto a número finito; evita errores en inglés y valores como nan/inf."""
+    try: v=float(str(text).replace(',','').strip())
+    except ValueError: raise ValueError('Escribe un número válido (sin letras ni símbolos).') from None
+    if not math.isfinite(v): raise ValueError('Escribe un número válido (sin letras ni símbolos).')
+    return v
+def pin_problem(pin,allow_weak=False):
+    """Devuelve el motivo por el que un NIP no es aceptable, o None si es válido."""
+    p=str(pin)
+    if not (p.isascii() and p.isdigit()) or len(p)<4: return 'El NIP debe tener al menos 4 dígitos (solo números).'
+    if allow_weak: return None
+    if p in WEAK_PINS: return 'Ese NIP es demasiado común (por ejemplo 1234). Elige otro.'
+    if any(len(p)%k==0 and p==p[:k]*(len(p)//k) for k in range(1,len(p)//2+1)): return 'No uses NIP repetidos como 0000, 1212 o 123123.'
+    d=[(int(b)-int(a))%10 for a,b in zip(p,p[1:])]
+    if all(x==1 for x in d) or all(x==9 for x in d): return 'No uses secuencias como 1234, 4321 o 7890.'
+    return None
+def luhn_ok(n):
+    total=0
+    for i,ch in enumerate(reversed(n)):
+        d=int(ch)
+        if i%2:
+            d*=2
+            if d>9: d-=9
+        total+=d
+    return total%10==0
+def luhn_digit(partial): return next(str(d) for d in range(10) if luhn_ok(partial+str(d)))
+ 
+class Store:
+    def __init__(self,path=DB_FILE):
+        self.db=sqlite3.connect(path); self.db.row_factory=sqlite3.Row; self.db.execute('PRAGMA foreign_keys=ON'); self.setup()
+    def setup(self):
+        self.db.executescript('''
+        CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,name TEXT NOT NULL,username TEXT UNIQUE NOT NULL,account TEXT UNIQUE NOT NULL,clabe TEXT UNIQUE NOT NULL,salt TEXT NOT NULL,pinhash TEXT NOT NULL,balance REAL NOT NULL DEFAULT 0,currency TEXT NOT NULL DEFAULT 'MXN',daily_limit REAL NOT NULL DEFAULT 10000,blocked INTEGER NOT NULL DEFAULT 0,voice INTEGER NOT NULL DEFAULT 0,face INTEGER NOT NULL DEFAULT 0,failed_attempts INTEGER NOT NULL DEFAULT 0,locked_until TEXT,created TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS tx(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,kind TEXT NOT NULL,amount REAL NOT NULL,fee REAL NOT NULL DEFAULT 0,detail TEXT NOT NULL,currency TEXT NOT NULL DEFAULT 'MXN',created TEXT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY,user_id INTEGER,action TEXT,detail TEXT,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS savings(user_id INTEGER PRIMARY KEY,name TEXT NOT NULL DEFAULT 'Mi meta',target REAL NOT NULL DEFAULT 5000,saved REAL NOT NULL DEFAULT 0,monthly_budget REAL NOT NULL DEFAULT 8000,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS scheduled(id INTEGER PRIMARY KEY,user_id INTEGER,recipient TEXT,amount REAL,note TEXT,run_at TEXT,status TEXT DEFAULT 'Pendiente',created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS investments(id INTEGER PRIMARY KEY,user_id INTEGER,product TEXT,amount REAL,rate REAL,days INTEGER,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS joint(id INTEGER PRIMARY KEY,user_id INTEGER,name TEXT,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS services(id INTEGER PRIMARY KEY,user_id INTEGER,service TEXT,reference TEXT,amount REAL,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS alerts(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,message TEXT NOT NULL,created TEXT NOT NULL,seen INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS cards(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,kind TEXT NOT NULL,last4 TEXT NOT NULL,holder TEXT NOT NULL,expiry TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id));
+        '''); self.db.commit()
+        # Migración: bases de datos creadas con versiones anteriores no tienen las columnas de límite de acceso.
+        cols={r['name'] for r in self.db.execute('PRAGMA table_info(users)')}
+        for col,ddl in (('failed_attempts','INTEGER NOT NULL DEFAULT 0'),('locked_until','TEXT')):
+            if col not in cols: self.db.execute(f'ALTER TABLE users ADD COLUMN {col} {ddl}')
+        if not self.db.execute('SELECT id FROM users LIMIT 1').fetchone():
+            uid=self.create_user('Usuario Demo','demo','1234',25000,allow_weak=True)  # NIP 1234 permitido solo para la cuenta demo del sistema
+            self.log(uid,'Sistema','Cuenta de demostración creada')
+        # Toda cuenta debe tener su tarjeta de débito ligada (también las creadas antes de esta versión).
+        for u in self.db.execute("SELECT id FROM users WHERE id NOT IN (SELECT user_id FROM cards WHERE kind='Débito')").fetchall(): self.create_card(u['id'],'Débito')
+        self.db.commit()
+    def create_user(self,name,username,pin,initial=0,allow_weak=False):
+        name,username=str(name).strip(),str(username).strip()
+        if not name or not username: raise ValueError('El nombre y usuario son obligatorios.')
+        problem=pin_problem(pin,allow_weak)
+        if problem: raise ValueError(problem)
+        initial=num(initial)
+        if initial<0: raise ValueError('El saldo inicial no puede ser negativo.')
+        salt,digest=pin_hash(str(pin)); account='AU'+''.join(secrets.choice('0123456789') for _ in range(10)); clabe='646'+''.join(secrets.choice('0123456789') for _ in range(15))
+        cur=self.db.cursor(); cur.execute('INSERT INTO users(name,username,account,clabe,salt,pinhash,balance,created) VALUES(?,?,?,?,?,?,?,?)',(name,username,account,clabe,salt,digest,0.0,stamp()))
+        uid=cur.lastrowid; self.db.execute('INSERT INTO savings(user_id) VALUES(?)',(uid,)); self.create_card(uid,'Débito')
+        if initial: self.add_tx(uid,'Depósito inicial',initial,'Saldo inicial de demostración')
+        self.db.commit(); return uid
+    def user_login(self,login): return self.db.execute('SELECT * FROM users WHERE username=? OR account=? OR clabe=?',(login,login,login)).fetchone()
+    def verify(self,u,pin):
+        return secrets.compare_digest(pin_hash(str(pin),u['salt'])[1],u['pinhash'])
+    def log(self,uid,action,detail): self.db.execute('INSERT INTO logs(user_id,action,detail,created) VALUES(?,?,?,?)',(uid,action,detail,stamp())); self.db.commit()
+    def add_tx(self,uid,kind,amount,detail,fee=0,currency='MXN'):
+        amount=float(amount); fee=float(fee)
+        if not math.isfinite(amount) or not math.isfinite(fee) or amount<=0 or fee<0: raise ValueError('El importe debe ser mayor que cero.')
+        u=self.db.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone()
+        credit=kind in CREDIT_KINDS
+        if not credit and u['balance']+1e-8<amount+fee: raise ValueError('Saldo insuficiente.')
+        if kind in LIMITED_KINDS:
+            day=datetime.now().strftime('%Y-%m-%d'); marks=','.join('?'*len(LIMITED_KINDS))
+            spent=self.db.execute(f"SELECT COALESCE(SUM(amount+fee),0) FROM tx WHERE user_id=? AND substr(created,1,10)=? AND kind IN ({marks})",(uid,day,*LIMITED_KINDS)).fetchone()[0]
+            if spent+amount+fee>u['daily_limit']: raise ValueError('La operación supera tu límite diario.')
+        delta=amount if credit else -amount-fee
+        self.db.execute('UPDATE users SET balance=balance+? WHERE id=?',(delta,uid))
+        self.db.execute('INSERT INTO tx(user_id,kind,amount,fee,detail,currency,created) VALUES(?,?,?,?,?,?,?)',(uid,kind,amount,fee,detail,currency,stamp()))
+        if kind!='Depósito inicial':  # alerta de movimiento (sin mostrar el saldo, porque consultarlo tiene comisión)
+            msg=f'{kind} por {pesos(amount)}'+(f' (comisión {pesos(fee)})' if fee else '')+f' · {str(detail)[:70]}'
+            self.db.execute('INSERT INTO alerts(user_id,message,created,seen) VALUES(?,?,?,0)',(uid,msg,stamp()))
+        self.db.commit()
+    def find_account(self,dest): return self.db.execute('SELECT * FROM users WHERE account=? OR clabe=?',(str(dest).strip(),str(dest).strip())).fetchone()
+    def transfer(self,uid,dest,amount,note):
+        '''Cuenta Aurora: sin comisión y se acredita al destinatario. Cuenta que NO pertenece al banco: comisión de $35.'''
+        dest=str(dest).strip()
+        if not dest: raise ValueError('Escribe el destinatario.')
+        sender=self.db.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone(); target=self.find_account(dest)
+        if target and target['id']==uid: raise ValueError('No puedes transferir a tu propia cuenta.')
+        if target and target['blocked']: raise ValueError('La cuenta destino no puede recibir transferencias.')
+        fee=0.0 if target else EXTERNAL_FEE
+        self.add_tx(uid,'Transferencia enviada',amount,f'{note} | Destino: {dest}',fee)
+        if target: self.add_tx(target['id'],'Transferencia recibida',amount,f"{note} | Origen: {sender['account']}")
+        if fee: self.db.execute('INSERT INTO tx(user_id,kind,amount,fee,detail,currency,created) VALUES(?,?,?,?,?,?,?)',(uid,'Comisión',fee,0,'Comisión de transferencia externa','MXN',stamp())); self.db.commit()
+        self.log(uid,'Transferencia',dest); return fee,bool(target)
+    def consult(self,uid):
+        '''Consulta de saldo con comisión de $20. Si no alcanza para la comisión, no se cobra ni se muestra nada.'''
+        self.add_tx(uid,'Comisión por consulta',QUERY_FEE,'Consulta de saldo'); self.log(uid,'Consulta de saldo',f'Comisión {QUERY_FEE:.2f}')
+        return self.db.execute('SELECT balance FROM users WHERE id=?',(uid,)).fetchone()[0]
+    def run_scheduled(self,uid):
+        rows=self.db.execute("SELECT * FROM scheduled WHERE user_id=? AND status='Pendiente' AND run_at<=?",(uid,stamp())).fetchall()
+        for r in rows:
+            try: self.transfer(uid,r['recipient'],r['amount'],f"Programada: {r['note']}"); status='Ejecutada'
+            except ValueError as e: status='No ejecutada: '+str(e)
+            self.db.execute('UPDATE scheduled SET status=? WHERE id=?',(status,r['id'])); self.log(uid,'Transferencia programada',status)
+        self.db.commit()
+    # --- límite de acceso por cuenta
+    def lock_remaining(self,u):
+        if not u['locked_until']: return 0
+        return max(0,int((datetime.strptime(u['locked_until'],'%Y-%m-%d %H:%M:%S')-datetime.now()).total_seconds()))
+    def failed_login(self,u):
+        n=u['failed_attempts']+1
+        if n>=MAX_ATTEMPTS:
+            until=(datetime.now()+timedelta(minutes=LOCK_MINUTES)).strftime('%Y-%m-%d %H:%M:%S')
+            self.db.execute('UPDATE users SET failed_attempts=0,locked_until=? WHERE id=?',(until,u['id'])); self.log(u['id'],'Acceso limitado',f'{MAX_ATTEMPTS} intentos fallidos'); return 0,True
+        self.db.execute('UPDATE users SET failed_attempts=? WHERE id=?',(n,u['id'])); self.log(u['id'],'Acceso rechazado','NIP incorrecto'); return MAX_ATTEMPTS-n,False
+    def reset_attempts(self,uid): self.db.execute('UPDATE users SET failed_attempts=0,locked_until=NULL WHERE id=?',(uid,)); self.db.commit()
+    # --- alertas de movimientos
+    def unread_alerts(self,uid): return self.db.execute('SELECT COUNT(*) FROM alerts WHERE user_id=? AND seen=0',(uid,)).fetchone()[0]
+    # --- tarjetas ligadas (solo se guardan los últimos 4 dígitos; nunca el número completo)
+    def cards(self,uid): return self.db.execute('SELECT * FROM cards WHERE user_id=? ORDER BY id',(uid,)).fetchall()
+    def create_card(self,uid,kind,number=None,holder=None,expiry=None):
+        u=self.db.execute('SELECT name FROM users WHERE id=?',(uid,)).fetchone()
+        if number is None: partial='5'+''.join(secrets.choice('0123456789') for _ in range(14)); number=partial+luhn_digit(partial)
+        if expiry is None: d=datetime.now(); expiry=f'{d.month:02d}/{(d.year+4)%100:02d}'
+        self.db.execute('INSERT INTO cards(user_id,kind,last4,holder,expiry,created) VALUES(?,?,?,?,?,?)',(uid,kind,number[-4:],(holder or u['name']).upper(),expiry,stamp()))
+    def link_credit(self,uid,number,holder,expiry):
+        number=re.sub(r'[\s-]','',str(number)); holder=str(holder).strip(); expiry=str(expiry).strip(); m=re.fullmatch(r'(0[1-9]|1[0-2])/(\d{2})',expiry)
+        if not re.fullmatch(r'\d{13,19}',number,re.ASCII) or not luhn_ok(number): raise ValueError('Número de tarjeta no válido.')
+        if not holder: raise ValueError('Escribe el nombre del titular.')
+        if not m: raise ValueError('La vigencia debe tener formato MM/AA.')
+        now=datetime.now()
+        if (2000+int(m.group(2)),int(m.group(1)))<(now.year,now.month): raise ValueError('La tarjeta está vencida.')
+        if self.db.execute("SELECT 1 FROM cards WHERE user_id=? AND kind='Crédito' AND last4=?",(uid,number[-4:])).fetchone(): raise ValueError('Esa tarjeta ya está vinculada.')
+        self.create_card(uid,'Crédito',number,holder,expiry); self.log(uid,'Tarjeta vinculada',f'Crédito terminación {number[-4:]}'); self.db.commit()
+    def unlink_card(self,uid,card_id):
+        cur=self.db.execute("DELETE FROM cards WHERE id=? AND user_id=? AND kind='Crédito'",(card_id,uid)); self.db.commit(); return cur.rowcount
+ 
+class Aurora:
+    def __init__(self,root):
+        self.root=root; self.store=Store(); self.user=None; self.sound=True; self.last_receipt=''; self.fx=17.2
+        root.title('BANCO AURORA | Simulador'); root.geometry('1250x790'); root.minsize(1000,660); root.configure(bg=BG)
+        self.style=ttk.Style(); self.style.theme_use('clam'); self.style.configure('Treeview',background=WHITE,foreground=INK,fieldbackground=WHITE,rowheight=28,font=('Segoe UI',10)); self.style.configure('Treeview.Heading',background=INK,foreground=GOLD_LIGHT,font=('Segoe UI',9,'bold')); self.style.map('Treeview',background=[('selected',GOLD_LIGHT)],foreground=[('selected',INK)])
+        self.login_screen()
+    def beep(self):
+        if self.sound:
+            try:self.root.bell()
+            except Exception:pass
+    def clear(self):
+        for w in self.root.winfo_children(): w.destroy()
+    def panel(self,parent,bg=WHITE,**kw): return tk.Frame(parent,bg=bg,**kw)
+    def label(self,parent,text,size=10,color=INK,bold=False,**kw): return tk.Label(parent,text=text,bg=kw.pop('bg',parent.cget('bg')),fg=color,font=('Segoe UI',size,'bold' if bold else 'normal'),**kw)
+    def btn(self,parent,text,cmd,primary=False,pady=9,**kw):
+        return tk.Button(parent,text=text,command=lambda:(self.beep(),cmd()),bg=GOLD if primary else INK,fg=INK if primary else WHITE,activebackground=GOLD_LIGHT,activeforeground=INK,relief='flat',bd=0,cursor='hand2',font=('Segoe UI',10,'bold' if primary else 'normal'),padx=13,pady=pady,**kw)
+    def entry(self,parent,show=None):
+        e=self._entry(parent,show); e.bind('<Key>',lambda ev:self.beep() if (ev.char or ev.keysym=='BackSpace') else None,add='+'); return e  # sonido al teclear
+    def _entry(self,parent,show=None): return tk.Entry(parent,bg='#FBFAF6',fg=INK,insertbackground=INK,relief='flat',highlightthickness=1,highlightbackground=LINE,highlightcolor=GOLD,show=show,font=('Segoe UI',11))
+    def field(self,parent,title,default='',show=None):
+        self.label(parent,title,9,MUTED,True).pack(anchor='w',pady=(10,4)); e=self.entry(parent,show); e.pack(fill='x')
+        if default!='':e.insert(0,str(default))
+        return e
+    def login_screen(self):
+        self.clear(); root=self.panel(self.root,BG);root.pack(fill='both',expand=True)
+        left=self.panel(root,INK,width=440);left.pack(side='left',fill='y');left.pack_propagate(False)
+        self.label(left,'A U R O R A',29,GOLD_LIGHT,True,bg=INK).pack(anchor='w',padx=42,pady=(70,8))
+        self.label(left,'BANCA DIGITAL',11,WHITE,True,bg=INK).pack(anchor='w',padx=45)
+        self.label(left,'Control claro.\nFinanzas bajo tu mirada.',23,WHITE,True,bg=INK,justify='left').pack(anchor='w',padx=42,pady=(100,18))
+        self.label(left,'SIMULADOR EDUCATIVO · SIN DINERO REAL',8,'#C6C8CD',True,bg=INK).pack(anchor='w',padx=42,side='bottom',pady=28)
+        right=self.panel(root,BG);right.pack(side='left',fill='both',expand=True)
+        card=self.panel(right,WHITE,padx=38,pady=34,highlightbackground=LINE,highlightthickness=1);card.place(relx=.5,rely=.5,anchor='center',width=470)
+        self.label(card,'Bienvenido',25,INK,True).pack(anchor='w')
+        self.label(card,'Ingresa con tu usuario, cuenta o CLABE y tu NIP.',10,MUTED).pack(anchor='w',pady=(4,18))
+        login=self.field(card,'USUARIO / NÚMERO DE CUENTA / CLABE')
+        pin=self.field(card,'NIP','',show='●')
+        def enter():
+            u=self.store.user_login(login.get().strip())
+            if not u:
+                messagebox.showerror('Acceso no válido','Verifica tus datos. La cuenta demo usa usuario demo y NIP 1234.');return
+            left=self.store.lock_remaining(u)
+            if left:
+                self.store.log(u['id'],'Acceso rechazado','Cuenta con límite de intentos');messagebox.showerror('Acceso limitado',f'Superaste el límite de intentos. Intenta de nuevo en {(left+59)//60} minuto(s).');return
+            if not self.store.verify(u,pin.get().strip()):
+                remaining,locked=self.store.failed_login(u)
+                if locked:messagebox.showerror('Acceso limitado',f'Superaste {MAX_ATTEMPTS} intentos fallidos. La cuenta queda limitada por {LOCK_MINUTES} minutos.')
+                else:messagebox.showerror('Acceso no válido',f'Verifica tus datos. Intentos restantes: {remaining}.')
+                return
+            if u['blocked']:messagebox.showerror('Cuenta bloqueada','Esta cuenta está bloqueada.');return
+            self.store.reset_attempts(u['id']);self.user=dict(self.store.db.execute('SELECT * FROM users WHERE id=?',(u['id'],)).fetchone());self.store.log(u['id'],'Inicio de sesión','Acceso local');self.store.run_scheduled(u['id']);self.dashboard()
+        self.btn(card,'ENTRAR A MI CUENTA',enter,True).pack(fill='x',pady=(22,8))
+        row=self.panel(card,WHITE);row.pack(fill='x')
+        self.btn(row,'Crear cuenta',self.register).pack(side='left',fill='x',expand=True,padx=(0,5))
+        self.btn(row,'Ayuda',lambda:messagebox.showinfo('Acceso demo','Usuario: demo\nNIP: 1234\nTambién puedes usar el número de cuenta o CLABE de Perfil.')).pack(side='left',fill='x',expand=True,padx=(5,0))
+        pin.bind('<Return>',lambda e:enter())
+    def register(self):
+        w=self.modal('Crear cuenta','440x570'); b=self.panel(w,WHITE,padx=24,pady=22);b.pack(fill='both',expand=True,padx=14,pady=14)
+        self.label(b,'Nueva cuenta Aurora',18,INK,True).pack(anchor='w')
+        name=self.field(b,'NOMBRE COMPLETO'); user=self.field(b,'NOMBRE DE USUARIO'); pin=self.field(b,'NIP DE 4 O MÁS DÍGITOS',show='●')
+        self.label(b,'Por seguridad no se aceptan NIP fáciles como 1234, 0000 o secuencias.',9,MUTED,wraplength=380,justify='left').pack(anchor='w',pady=(4,0))
+        initial=self.field(b,'SALDO INICIAL DE DEMOSTRACIÓN','0')
+        def create():
+            try:uid=self.store.create_user(name.get(),user.get(),pin.get(),num(initial.get() or 0));self.store.log(uid,'Cuenta creada','Registro local');messagebox.showinfo('Cuenta creada','Ya puedes entrar con tu usuario y NIP. Tu tarjeta de débito ya quedó ligada a la cuenta.');w.destroy()
+            except sqlite3.IntegrityError:messagebox.showerror('Usuario ocupado','Ese nombre de usuario ya existe.')
+            except Exception as e:messagebox.showerror('No se pudo crear',str(e))
+        self.btn(b,'CREAR CUENTA',create,True).pack(fill='x',pady=18)
+    def modal(self,title,size='600x520'):
+        w=tk.Toplevel(self.root);w.title(title);w.geometry(size);w.configure(bg=BG);w.transient(self.root);return w
+    def dashboard(self):
+        self.clear(); self.store.run_scheduled(self.user['id'])
+        shell=self.panel(self.root,BG);shell.pack(fill='both',expand=True)
+        side=self.panel(shell,INK,width=240);side.pack(side='left',fill='y');side.pack_propagate(False)
+        self.label(side,'AURORA',23,GOLD_LIGHT,True,bg=INK).pack(anchor='w',padx=24,pady=(25,0));self.label(side,'PANEL FINANCIERO',8,'#B8BBC2',True,bg=INK).pack(anchor='w',padx=26,pady=(0,20))
+        unread=self.store.unread_alerts(self.user['id'])
+        nav=[('Resumen',self.dashboard),('Transferencias',self.transfer),('Depósitos y retiros',self.deposit_withdraw),('Movimientos',self.history),('Consulta de saldo',self.balance_query),('Alertas de movimientos'+(f' ({unread})' if unread else ''),self.alerts),('Reportes de gastos',self.reports),('Ahorro y presupuesto',self.savings),('Cuenta de inversión',self.investments),('Pagar servicios',self.services),('Cuentas conjuntas',self.joint),('Tarjetas vinculadas',self.cards),('Cambio MXN / USD',self.converter),('Cashback',self.cashback),('Transferencias programadas',self.scheduled),('Tickets y exportación',self.receipts),('Perfil y seguridad',self.profile),('Atención al cliente',self.chat)]
+        self.btn(side,'Cerrar sesión',self.logout).pack(side='bottom',fill='x',padx=12,pady=16)
+        wrap=tk.Frame(side,bg=INK);wrap.pack(fill='both',expand=True);cv=tk.Canvas(wrap,bg=INK,highlightthickness=0,width=224);inner=tk.Frame(cv,bg=INK);cv.create_window((0,0),window=inner,anchor='nw',width=224)
+        inner.bind('<Configure>',lambda e:cv.configure(scrollregion=cv.bbox('all')));cv.pack(fill='both',expand=True)
+        def wheel(e):
+            try:cv.yview_scroll(-1 if (e.num==4 or (e.num!=5 and e.delta>0)) else 1,'units')
+            except tk.TclError:pass
+        cv.bind('<Enter>',lambda e:[cv.bind_all(s,wheel) for s in ('<MouseWheel>','<Button-4>','<Button-5>')]);cv.bind('<Leave>',lambda e:[cv.unbind_all(s) for s in ('<MouseWheel>','<Button-4>','<Button-5>')])
+        for name,cmd in nav:self.btn(inner,'  '+name,cmd,pady=6).pack(fill='x',padx=10,pady=2)
+        main=self.panel(shell,BG);main.pack(side='left',fill='both',expand=True)
+        header=self.panel(main,BG);header.pack(fill='x',padx=28,pady=(25,15))
+        self.label(header,f'Buenos días, {self.user["name"].split()[0]}',22,INK,True).pack(side='left')
+        self.label(header,'CUENTA '+self.user['account'],9,MUTED,True).pack(side='right',pady=10)
+        if unread:
+            bar=self.panel(main,GOLD_LIGHT,padx=14,pady=6);bar.pack(fill='x',padx=28,pady=(0,10));self.label(bar,f'ALERTA: tienes {unread} movimiento(s) nuevo(s) en tu cuenta.',10,INK,True,bg=GOLD_LIGHT).pack(side='left');self.btn(bar,'Ver alertas',self.alerts,pady=4).pack(side='right')
+        cards=self.panel(main,BG);cards.pack(fill='x',padx=22)
+        self.metric(cards,'SALDO DISPONIBLE',*self.balance_text(),GOLD).pack(side='left',fill='both',expand=True,padx=6)
+        count=self.store.db.execute('SELECT COUNT(*) FROM tx WHERE user_id=?',(self.user['id'],)).fetchone()[0]
+        self.metric(cards,'MOVIMIENTOS',str(count),'Operaciones registradas',GREEN).pack(side='left',fill='both',expand=True,padx=6)
+        s=self.store.db.execute('SELECT * FROM savings WHERE user_id=?',(self.user['id'],)).fetchone(); pct=min(100,(s['saved']/s['target']*100 if s['target'] else 0))
+        self.metric(cards,'META DE AHORRO',f'{pct:.0f}%',s['name'],INK).pack(side='left',fill='both',expand=True,padx=6)
+        lower=self.panel(main,BG);lower.pack(fill='both',expand=True,padx=28,pady=20)
+        activity=self.panel(lower,WHITE,padx=18,pady=16,highlightbackground=LINE,highlightthickness=1);activity.pack(side='left',fill='both',expand=True,padx=(0,8))
+        self.label(activity,'Actividad reciente',14,INK,True).pack(anchor='w',pady=(0,12))
+        tree=self.tree(activity,('fecha','operación','detalle','importe'),(145,145,300,120))
+        for r in self.store.db.execute('SELECT * FROM tx WHERE user_id=? ORDER BY id DESC LIMIT 8',(self.user['id'],)).fetchall():tree.insert('','end',values=(r['created'],r['kind'],r['detail'],pesos(r['amount'])))
+        tools=self.panel(lower,WHITE,padx=18,pady=16,width=250,highlightbackground=LINE,highlightthickness=1);tools.pack(side='left',fill='y');tools.pack_propagate(False)
+        self.label(tools,'Acceso rápido',14,INK,True).pack(anchor='w',pady=(0,10))
+        for text,cmd in [('Transferir',self.transfer),('Depositar',lambda:self.deposit_withdraw('Depósito')),('Retirar',lambda:self.deposit_withdraw('Retiro')),('Pagar servicio',self.services),('Exportar CSV',self.export_csv)]:self.btn(tools,text,cmd,text=='Transferir').pack(fill='x',pady=4)
+        self.label(main,'SIMULACIÓN LOCAL · NO CONECTADA A NINGÚN BANCO',8,MUTED,True,bg=BG).pack(anchor='e',padx=28,pady=(0,10))
+    def balance_text(self):
+        bal=self.user['balance']
+        if self.user['currency']=='USD':return f'${bal/self.fx:,.2f} USD',f'≈ {pesos(bal)} · {self.fx:g} MXN por USD'
+        return pesos(bal),'Saldo local de demostración'
+    def reload_user(self):self.user=dict(self.store.db.execute('SELECT * FROM users WHERE id=?',(self.user['id'],)).fetchone())
+    def metric(self,parent,title,value,subtitle,accent):
+        b=self.panel(parent,WHITE,padx=18,pady=16,highlightbackground=LINE,highlightthickness=1);self.label(b,title,8,MUTED,True).pack(anchor='w');self.label(b,value,22,accent,True).pack(anchor='w',pady=5);self.label(b,subtitle,9,MUTED).pack(anchor='w');return b
+    def tree(self,parent,cols,widths):
+        wrap=self.panel(parent,WHITE);wrap.pack(fill='both',expand=True);t=ttk.Treeview(wrap,columns=cols,show='headings')
+        for c,w in zip(cols,widths):t.heading(c,text=c.upper());t.column(c,width=w,minwidth=65,anchor='w')
+        sy=ttk.Scrollbar(wrap,orient='vertical',command=t.yview);t.configure(yscrollcommand=sy.set);t.pack(side='left',fill='both',expand=True);sy.pack(side='right',fill='y');return t
+    def done(self,win,msg):messagebox.showinfo('Banco Aurora',msg);win.destroy();self.refresh()
+    def refresh(self):self.reload_user();self.dashboard()
+    def deposit_withdraw(self,preset=None):
+        w=self.modal('Depósitos y retiros','480x430');b=self.panel(w,WHITE,padx=24,pady=20);b.pack(fill='both',expand=True,padx=14,pady=14)
+        kind=tk.StringVar(value=preset or 'Depósito');self.label(b,'Tipo de operación',9,MUTED,True).pack(anchor='w');ttk.Combobox(b,textvariable=kind,values=('Depósito','Retiro'),state='readonly').pack(fill='x',pady=5)
+        amount=self.field(b,'IMPORTE MXN');detail=self.field(b,'CONCEPTO','Operación de demostración')
+        def go():
+            try:
+                n=num(amount.get());self.store.add_tx(self.user['id'],kind.get(),n,detail.get());self.store.log(self.user['id'],kind.get(),str(n));self.last_receipt=f'{kind.get()}\nImporte: {pesos(n)}\nConcepto: {detail.get()}\nFecha: {stamp()}';self.done(w,f'{kind.get()} registrado. Saldo actual: {pesos(self.store.db.execute("SELECT balance FROM users WHERE id=?",(self.user["id"],)).fetchone()[0])}')
+            except Exception as e:messagebox.showerror('Operación no realizada',str(e))
+        self.btn(b,'CONFIRMAR OPERACIÓN',go,True).pack(fill='x',pady=20)
+    def transfer(self):
+        w=self.modal('Transferencias','520x520');b=self.panel(w,WHITE,padx=24,pady=20);b.pack(fill='both',expand=True,padx=14,pady=14)
+        self.label(b,'Enviar dinero',18,INK,True).pack(anchor='w');dest=self.field(b,'CUENTA O CLABE DEL DESTINATARIO');amount=self.field(b,'IMPORTE MXN');note=self.field(b,'CONCEPTO','Transferencia personal')
+        self.label(b,f'Cuentas de Banco Aurora: sin comisión. Cuentas de otros bancos: comisión de {pesos(EXTERNAL_FEE)}.',9,MUTED,wraplength=430,justify='left').pack(anchor='w',pady=10)
+        def go():
+            try:
+                n=num(amount.get());d=dest.get().strip()
+                if not d:raise ValueError('Escribe el destinatario.')
+                if n<=0:raise ValueError('El importe debe ser mayor que cero.')
+                target=self.store.find_account(d);fee=0 if target else EXTERNAL_FEE
+                if not messagebox.askyesno('Confirmar transferencia',f"Destino: {d}\nTipo: {'Cuenta Aurora' if target else 'Otro banco'}\nImporte: {pesos(n)}\nComisión: {pesos(fee)}\nTotal: {pesos(n+fee)}\n\n¿Confirmar?",parent=w):return
+                fee,internal=self.store.transfer(self.user['id'],d,n,note.get())
+                self.last_receipt=f'TRANSFERENCIA DE DEMOSTRACIÓN\nDestino: {d}\nImporte: {pesos(n)}\nComisión: {pesos(fee)}\nConcepto: {note.get()}\nFecha: {stamp()}';self.done(w,f'Transferencia simulada registrada.\nImporte: {pesos(n)}\nComisión: {pesos(fee)}')
+            except Exception as e:messagebox.showerror('No se pudo transferir',str(e),parent=w)
+        self.btn(b,'REVISAR Y TRANSFERIR',go,True).pack(fill='x',pady=18)
+    def history(self):
+        w=self.modal('Historial de movimientos','900x560');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Movimientos de la cuenta',17,INK,True).pack(anchor='w',pady=(0,10));t=self.tree(b,('fecha','tipo','detalle','importe','comisión'),(155,155,370,110,100))
+        for r in self.store.db.execute('SELECT * FROM tx WHERE user_id=? ORDER BY id DESC',(self.user['id'],)).fetchall():t.insert('','end',values=(r['created'],r['kind'],r['detail'],pesos(r['amount']),pesos(r['fee'])))
+        self.btn(b,'Exportar CSV',self.export_csv).pack(anchor='e',pady=10)
+    def reports(self):
+        w=self.modal('Reportes de gastos','700x520');b=self.panel(w,WHITE,padx=20,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Resumen de gastos',18,INK,True).pack(anchor='w')
+        for days,title in ((7,'Últimos 7 días'),(30,'Últimos 30 días')):
+            since=(datetime.now()-timedelta(days=days)).strftime('%Y-%m-%d');rows=self.store.db.execute("SELECT kind,SUM(amount+fee) total FROM tx WHERE user_id=? AND created>=? AND kind IN ('Retiro','Transferencia enviada','Pago de servicio','Inversión','Ahorro apartado','Comisión por consulta') GROUP BY kind",(self.user['id'],since)).fetchall();total=sum(r['total'] for r in rows);p=self.panel(b,'#F7F4EC',padx=15,pady=12);p.pack(fill='x',pady=8);self.label(p,title,13,GOLD,True).pack(anchor='w');self.label(p,'Gastos registrados: '+pesos(total),15,INK,True).pack(anchor='w',pady=4)
+            for r in rows:self.label(p,f"• {r['kind']}: {pesos(r['total'])}",10,MUTED).pack(anchor='w')
+        self.btn(b,'Exportar CSV',self.export_csv).pack(anchor='e',pady=8)
+    def savings(self):
+        w=self.modal('Ahorro y presupuesto','500x560');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);s=self.store.db.execute('SELECT * FROM savings WHERE user_id=?',(self.user['id'],)).fetchone();self.label(b,'Tu plan financiero',18,INK,True).pack(anchor='w');name=self.field(b,'NOMBRE DE LA META',s['name']);target=self.field(b,'OBJETIVO MXN',s['target']);add=self.field(b,'APORTACIÓN A AHORRO MXN','0');budget=self.field(b,'PRESUPUESTO MENSUAL MXN',s['monthly_budget']);self.label(b,f"Ahorrado hasta ahora: {pesos(s['saved'])}",10,MUTED).pack(anchor='w',pady=8)
+        def save():
+            try:
+                t=num(target.get());a=num(add.get());m=num(budget.get())
+                if t<=0 or a<0 or m<=0:raise ValueError('Objetivo y presupuesto deben ser positivos; la aportación no puede ser negativa.')
+                if a:self.store.add_tx(self.user['id'],'Ahorro apartado',a,'Aportación a meta')
+                self.store.db.execute('UPDATE savings SET name=?,target=?,saved=saved+?,monthly_budget=? WHERE user_id=?',(name.get() or 'Mi meta',t,a,m,self.user['id']));self.store.db.commit();self.done(w,'Meta y presupuesto guardados.')
+            except Exception as e:messagebox.showerror('No se pudo guardar',str(e))
+        self.btn(b,'GUARDAR PLAN',save,True).pack(fill='x',pady=18)
+    def investments(self):
+        w=self.modal('Cuenta de inversión','500x500');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Inversión simulada',18,INK,True).pack(anchor='w');self.label(b,'Rendimientos ilustrativos, no son una oferta real.',9,MUTED).pack(anchor='w',pady=5);prod=tk.StringVar(value='Conservadora');ttk.Combobox(b,textvariable=prod,values=('Conservadora','Equilibrada','Crecimiento'),state='readonly').pack(fill='x',pady=6);amount=self.field(b,'IMPORTE MXN');days=self.field(b,'PLAZO EN DÍAS','30')
+        def go():
+            try:
+                n=num(amount.get());d=int(num(days.get()));rates={'Conservadora':.05,'Equilibrada':.09,'Crecimiento':.13};r=rates[prod.get()]
+                if d<1 or d>3650:raise ValueError('El plazo debe estar entre 1 y 3650 días.')
+                self.store.add_tx(self.user['id'],'Inversión',n,f'{prod.get()}, {d} días');self.store.db.execute('INSERT INTO investments(user_id,product,amount,rate,days,created) VALUES(?,?,?,?,?,?)',(self.user['id'],prod.get(),n,r,d,stamp()));self.store.db.commit();self.done(w,f'Inversión simulada. Rendimiento simple estimado: {pesos(n*r*d/365)}. No está garantizado.')
+            except Exception as e:messagebox.showerror('No se pudo registrar',str(e))
+        self.btn(b,'SIMULAR INVERSIÓN',go,True).pack(fill='x',pady=18)
+    def services(self):
+        w=self.modal('Pago de servicios','500x500');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Pago de servicio simulado',18,INK,True).pack(anchor='w');service=tk.StringVar(value='Agua');ttk.Combobox(b,textvariable=service,values=('Agua','TV','Teléfono','Internet','Electricidad'),state='readonly').pack(fill='x',pady=8);ref=self.field(b,'REFERENCIA DEL SERVICIO');amount=self.field(b,'IMPORTE MXN')
+        def go():
+            try:
+                n=num(amount.get())
+                if not ref.get().strip():raise ValueError('La referencia es obligatoria.')
+                self.store.add_tx(self.user['id'],'Pago de servicio',n,f'{service.get()} · referencia {ref.get()}');self.store.db.execute('INSERT INTO services(user_id,service,reference,amount,created) VALUES(?,?,?,?,?)',(self.user['id'],service.get(),ref.get(),n,stamp()));self.store.db.commit();self.done(w,f'Pago de {service.get()} registrado en la simulación por {pesos(n)}.')
+            except Exception as e:messagebox.showerror('Pago no realizado',str(e))
+        self.btn(b,'REGISTRAR PAGO',go,True).pack(fill='x',pady=18)
+    def joint(self):
+        w=self.modal('Cuentas conjuntas','500x450');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Registro de cotitular',18,INK,True).pack(anchor='w');self.label(b,'Registro local de demostración, no crea derechos bancarios reales.',9,MUTED).pack(anchor='w',pady=6);name=self.field(b,'NOMBRE DEL COTITULAR')
+        def go():
+            if not name.get().strip():messagebox.showerror('Dato faltante','Escribe el nombre.');return
+            self.store.db.execute('INSERT INTO joint(user_id,name,created) VALUES(?,?,?)',(self.user['id'],name.get().strip(),stamp()));self.store.db.commit();self.store.log(self.user['id'],'Cotitular registrado',name.get().strip());self.done(w,'Cotitular agregado a la lista de demostración.')
+        self.btn(b,'AGREGAR COTITULAR',go,True).pack(fill='x',pady=14)
+        for r in self.store.db.execute('SELECT * FROM joint WHERE user_id=? ORDER BY id DESC',(self.user['id'],)).fetchall():self.label(b,f"• {r['name']} · {r['created']}",10,MUTED).pack(anchor='w')
+    def converter(self):
+        w=self.modal('Conversor MXN / USD','460x430');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Cambio de moneda',18,INK,True).pack(anchor='w');self.label(b,'Tipo de cambio de ejemplo. No es cotización en tiempo real.',9,MUTED).pack(anchor='w',pady=5);rate=self.field(b,'MXN POR 1 USD',self.fx);amount=self.field(b,'CANTIDAD','100');direction=tk.StringVar(value='MXN a USD');ttk.Combobox(b,textvariable=direction,values=('MXN a USD','USD a MXN'),state='readonly').pack(fill='x',pady=8);result=self.label(b,'Resultado: 0.00',16,GOLD,True);result.pack(anchor='w',pady=12)
+        def calc():
+            try:r=num(rate.get());n=num(amount.get());
+            except ValueError:messagebox.showerror('Dato inválido','Escribe cantidades numéricas.');return
+            if r<=0 or n<0:messagebox.showerror('Dato inválido','El tipo de cambio debe ser positivo.');return
+            self.fx=r;out=n/r if direction.get()=='MXN a USD' else n*r;result.config(text=f"Resultado: {out:,.2f} {'USD' if direction.get()=='MXN a USD' else 'MXN'}")
+        self.btn(b,'CONVERTIR',calc,True).pack(fill='x')
+    def cashback(self):
+        w=self.modal('Calculadora cashback','450x390');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Calcula tu cashback',18,INK,True).pack(anchor='w');amount=self.field(b,'IMPORTE DE COMPRA MXN');rate=tk.StringVar(value='1%');ttk.Combobox(b,textvariable=rate,values=('1%','2%'),state='readonly').pack(fill='x',pady=8);result=self.label(b,'Cashback: $0.00',15,GOLD,True);result.pack(anchor='w',pady=10)
+        def calc():
+            try:n=num(amount.get())
+            except ValueError:messagebox.showerror('Dato inválido','Escribe una cantidad.',parent=w);return
+            if n<=0:messagebox.showerror('Dato inválido','La compra debe ser mayor que cero.',parent=w);return
+            c=round(n*(.01 if rate.get()=='1%' else .02),2);result.config(text='Cashback: '+pesos(c))
+            if c<=0:messagebox.showinfo('Cashback','El importe es muy pequeño para generar cashback.',parent=w);return
+            if messagebox.askyesno('Registrar','¿Registrar cashback en la cuenta demo?',parent=w):
+                self.store.add_tx(self.user['id'],'Cashback',c,f'Cashback {rate.get()} sobre compra {pesos(n)}');self.refresh()
+        self.btn(b,'CALCULAR',calc,True).pack(fill='x')
+    def scheduled(self):
+        w=self.modal('Transferencias programadas','700x600');b=self.panel(w,WHITE,padx=20,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Programar transferencia',17,INK,True).pack(anchor='w');dest=self.field(b,'CUENTA O CLABE DEL DESTINATARIO');amount=self.field(b,'IMPORTE MXN');note=self.field(b,'CONCEPTO','Pago programado');when=self.field(b,'FECHA Y HORA (AAAA-MM-DD HH:MM)',(datetime.now()+timedelta(days=1)).strftime('%Y-%m-%d %H:%M'))
+        def go():
+            try:n=num(amount.get());dt=datetime.strptime(when.get(),'%Y-%m-%d %H:%M')
+            except ValueError:messagebox.showerror('Datos inválidos','Revisa el importe y el formato de fecha.');return
+            if n<=0 or dt<=datetime.now() or not dest.get().strip():messagebox.showerror('Datos inválidos','Fecha futura, importe positivo y destinatario obligatorio.');return
+            self.store.db.execute("INSERT INTO scheduled(user_id,recipient,amount,note,run_at,status,created) VALUES(?,?,?,?,?,'Pendiente',?)",(self.user['id'],dest.get().strip(),n,note.get(),dt.strftime('%Y-%m-%d %H:%M:%S'),stamp()));self.store.db.commit();self.done(w,f'Transferencia programada. Se revisará al abrir sesión después de la fecha indicada. Si la cuenta no pertenece a Aurora se cobrará comisión de {pesos(EXTERNAL_FEE)}.')
+        self.btn(b,'PROGRAMAR',go,True).pack(fill='x',pady=10);self.label(b,'Programaciones registradas',12,GOLD,True).pack(anchor='w');t=self.tree(b,('fecha','destino','importe','estado'),(165,200,100,260))
+        for r in self.store.db.execute('SELECT * FROM scheduled WHERE user_id=? ORDER BY id DESC',(self.user['id'],)).fetchall():t.insert('','end',values=(r['run_at'],r['recipient'],pesos(r['amount']),r['status']))
+    def receipts(self):
+        w=self.modal('Tickets y exportación','500x520');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Comprobantes',18,INK,True).pack(anchor='w');self.label(b,'TXT y CSV incluidos. PDF y QR requieren bibliotecas opcionales. Correo y WhatsApp abren la aplicación, pero no envían sin tu confirmación.',9,MUTED,wraplength=430,justify='left').pack(anchor='w',pady=8)
+        for text,cmd in [('Guardar ticket TXT',self.save_txt),('Crear ticket PDF',self.save_pdf),('Crear código QR',self.save_qr),('Exportar historial CSV',self.export_csv),('Compartir ticket por WhatsApp',self.whatsapp),('Preparar correo',self.email),('Imprimir ticket',self.print_ticket)]:self.btn(b,text,cmd).pack(fill='x',pady=4)
+    def ticket_text(self):return f'BANCO AURORA | COMPROBANTE DE DEMOSTRACIÓN\nTitular: {self.user["name"]}\nCuenta: {self.user["account"]}\nFecha: {stamp()}\n{self.last_receipt or "Resumen de cuenta"}\nSaldo actual: {pesos(self.user["balance"])}\nEste documento no es comprobante bancario real.\n'
+    def save_txt(self):
+        path=filedialog.asksaveasfilename(defaultextension='.txt',filetypes=[('Texto','*.txt')],initialfile='ticket_aurora.txt')
+        if path:Path(path).write_text(self.ticket_text(),encoding='utf-8');messagebox.showinfo('Ticket guardado',path)
+    def save_pdf(self):
+        try:from reportlab.pdfgen import canvas
+        except ImportError:messagebox.showwarning('Biblioteca opcional','Para PDF instala: pip install reportlab');return
+        path=filedialog.asksaveasfilename(defaultextension='.pdf',filetypes=[('PDF','*.pdf')],initialfile='ticket_aurora.pdf')
+        if not path:return
+        c=canvas.Canvas(path);y=780
+        for line in self.ticket_text().splitlines():c.drawString(45,y,line[:110]);y-=18
+        c.save();messagebox.showinfo('PDF creado',path)
+    def save_qr(self):
+        try:import qrcode
+        except ImportError:messagebox.showwarning('Biblioteca opcional','Para QR instala: pip install qrcode[pil]');return
+        path=filedialog.asksaveasfilename(defaultextension='.png',filetypes=[('PNG','*.png')],initialfile='ticket_aurora_qr.png')
+        if path:qrcode.make(self.ticket_text()).save(path);messagebox.showinfo('QR creado',path)
+    def export_csv(self):
+        path=filedialog.asksaveasfilename(defaultextension='.csv',filetypes=[('CSV','*.csv')],initialfile='historial_aurora.csv')
+        if not path:return
+        rows=self.store.db.execute('SELECT * FROM tx WHERE user_id=? ORDER BY id',(self.user['id'],)).fetchall()
+        with open(path,'w',newline='',encoding='utf-8-sig') as f:
+            wr=csv.writer(f);wr.writerow(['Fecha','Operación','Importe','Comisión','Detalle','Moneda']);wr.writerows([[r['created'],r['kind'],r['amount'],r['fee'],r['detail'],r['currency']] for r in rows])
+        self.store.log(self.user['id'],'Exportación CSV',path);messagebox.showinfo('Exportación completa',path)
+    def whatsapp(self):webbrowser.open('https://wa.me/?text='+urllib.parse.quote(self.ticket_text()))
+    def email(self):webbrowser.open('mailto:?subject='+urllib.parse.quote('Ticket Banco Aurora demo')+'&body='+urllib.parse.quote(self.ticket_text()))
+    def print_ticket(self):
+        path=APP_DIR/'ticket_aurora.txt';path.write_text(self.ticket_text(),encoding='utf-8')
+        try:
+            if sys.platform.startswith('win'):os.startfile(str(path),'print')
+            else:subprocess.run(['lp',str(path)],check=True)
+            messagebox.showinfo('Impresión','Ticket enviado a la impresora predeterminada.')
+        except Exception:messagebox.showinfo('Ticket preparado',f'No se pudo imprimir automáticamente. El archivo quedó en {path}')
+    def profile(self):
+        w=self.modal('Perfil y seguridad','570x740');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Perfil y seguridad',18,INK,True).pack(anchor='w');self.label(b,f"Nombre: {self.user['name']}\nUsuario: {self.user['username']}\nCuenta: {self.user['account']}\nCLABE demo: {self.user['clabe']}",10,MUTED,justify='left').pack(anchor='w',pady=8);limit=self.field(b,'LÍMITE DIARIO MXN',self.user['daily_limit']);self.label(b,'MONEDA PRINCIPAL (SALDO EN EL RESUMEN)',9,MUTED,True).pack(anchor='w',pady=(10,0));currency=tk.StringVar(value=self.user['currency']);ttk.Combobox(b,textvariable=currency,values=('MXN','USD'),state='readonly').pack(fill='x',pady=5);sound=tk.BooleanVar(value=self.sound);tk.Checkbutton(b,text='Sonidos de teclado y botones',variable=sound,bg=WHITE,fg=INK).pack(anchor='w',pady=5);voice=tk.BooleanVar(value=bool(self.user['voice']));tk.Checkbutton(b,text='Habilitar comandos de voz opcionales',variable=voice,bg=WHITE,fg=INK).pack(anchor='w',pady=3);face=tk.BooleanVar(value=bool(self.user['face']));tk.Checkbutton(b,text='Habilitar prueba de visión artificial',variable=face,bg=WHITE,fg=INK).pack(anchor='w',pady=3);self.label(b,'La visión artificial solo detecta un rostro, no verifica identidad ni guarda biometría.',9,MUTED,wraplength=450,justify='left').pack(anchor='w',pady=5)
+        def save():
+            try:n=num(limit.get())
+            except ValueError:messagebox.showerror('Dato inválido','El límite debe ser numérico.');return
+            if n<=0:messagebox.showerror('Dato inválido','El límite debe ser positivo.');return
+            self.sound=sound.get();self.store.db.execute('UPDATE users SET daily_limit=?,currency=?,voice=?,face=? WHERE id=?',(n,currency.get(),int(voice.get()),int(face.get()),self.user['id']));self.store.db.commit();self.store.log(self.user['id'],'Perfil actualizado','Preferencias guardadas');w.destroy();self.refresh()
+        self.btn(b,'GUARDAR PERFIL',save,True).pack(fill='x',pady=10);self.btn(b,'Cambiar NIP',self.change_pin).pack(fill='x',pady=3);self.btn(b,'Probar visión artificial',self.face_detection).pack(fill='x',pady=3);self.btn(b,'Comando de voz',self.voice_command).pack(fill='x',pady=3);self.btn(b,'Bloquear cuenta',self.block_account).pack(fill='x',pady=3);self.btn(b,'Historial de accesos',self.logs).pack(fill='x',pady=3)
+    def change_pin(self):
+        old=simpledialog.askstring('Cambiar NIP','NIP actual:',show='●',parent=self.root)
+        if old is None:return
+        u=self.store.db.execute('SELECT * FROM users WHERE id=?',(self.user['id'],)).fetchone()
+        if not self.store.verify(u,old):messagebox.showerror('Error','NIP actual incorrecto.');return
+        new=simpledialog.askstring('Cambiar NIP','Nuevo NIP numérico de 4 o más dígitos:',show='●',parent=self.root)
+        if not new:return
+        problem=pin_problem(new)
+        if problem:messagebox.showerror('NIP no permitido',problem);return
+        salt,digest=pin_hash(new);self.store.db.execute('UPDATE users SET salt=?,pinhash=? WHERE id=?',(salt,digest,self.user['id']));self.store.db.commit();self.store.log(self.user['id'],'NIP cambiado','Cambio realizado');messagebox.showinfo('Listo','NIP actualizado.')
+    def block_account(self):
+        if messagebox.askyesno('Bloquear cuenta','¿Bloquear esta cuenta y cerrar la sesión?'):
+            self.store.db.execute('UPDATE users SET blocked=1 WHERE id=?',(self.user['id'],));self.store.db.commit();self.store.log(self.user['id'],'Cuenta bloqueada','Bloqueo desde perfil');self.logout()
+    def logs(self):
+        w=self.modal('Historial de accesos','780x500');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);t=self.tree(b,('fecha','acción','detalle'),(170,190,420))
+        for r in self.store.db.execute('SELECT * FROM logs WHERE user_id=? ORDER BY id DESC LIMIT 300',(self.user['id'],)).fetchall():t.insert('','end',values=(r['created'],r['action'],r['detail']))
+    def face_detection(self):
+        if not self.user['face']:messagebox.showinfo('Visión desactivada','Activa primero la opción de visión artificial en Perfil.');return
+        try:import cv2
+        except ImportError:messagebox.showwarning('Falta OpenCV','Instala con: pip install opencv-python');return
+        w=self.modal('Elegir cámara','470x500');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14)
+        self.label(b,'Visión artificial',18,INK,True).pack(anchor='w');self.label(b,'Elige qué cámara usar. Solo detecta rostros, no identifica personas.',9,MUTED,wraplength=400,justify='left').pack(anchor='w',pady=6)
+        self.label(b,'Vista',11,INK,True).pack(anchor='w',pady=(8,0));mir=tk.StringVar(value='Cámara normal');ttk.Combobox(b,textvariable=mir,values=('Cámara normal','Cámara espejo'),state='readonly').pack(fill='x',pady=4)
+        self.btn(b,'Cámara 1 (computadora)',lambda:go(1),True).pack(fill='x',pady=(10,4))
+        self.label(b,'Cámara 2 (celular con DroidCam)',11,INK,True).pack(anchor='w',pady=(14,0))
+        ip=self.field(b,'IP DEL CELULAR (opcional)');self.label(b,'Abre DroidCam en el celular, conecta ambos a la misma red Wi-Fi y escribe la IP que muestra la app (ejemplo 192.168.1.50). Si la dejas vacía, se usa el cliente DroidCam instalado en la computadora.',9,MUTED,wraplength=400,justify='left').pack(anchor='w')
+        self.btn(b,'Cámara 2 (celular)',lambda:go(2)).pack(fill='x',pady=10)
+        def go(which):
+            addr=ip.get().strip();flip=mir.get()=='Cámara espejo';w.destroy();self.run_face(cv2,which,addr,flip)
+    def open_camera(self,cv2,which,addr):
+        if which==1:sources=[0]
+        elif addr:
+            if not re.fullmatch(r'[0-9A-Za-z.\-]+(:\d{1,5})?',addr):raise ValueError('La IP no es válida. Escribe algo como 192.168.1.50.')
+            sources=[f"http://{addr}{'' if ':' in addr else ':4747'}/video"]
+        else:sources=[1,2]  # cliente DroidCam de la computadora (cámara virtual)
+        for s in sources:
+            cap=cv2.VideoCapture(s)
+            if cap.isOpened():return cap
+            cap.release()
+        return None
+    def run_face(self,cv2,which,addr,mirror=False):
+        name='Cámara 1 (computadora)' if which==1 else 'Cámara 2 (celular, DroidCam)'
+        try:cap=self.open_camera(cv2,which,addr)
+        except ValueError as e:messagebox.showerror('Dato inválido',str(e));return
+        if cap is None:
+            messagebox.showerror('Cámara no disponible','No se pudo abrir la cámara 1 de la computadora. Cierra otras aplicaciones que la usen.' if which==1 else 'No se pudo conectar con DroidCam. Abre la app en el celular, revisa que ambos estén en la misma red Wi-Fi y que la IP sea la que muestra la app (puerto 4747).');return
+        cascade=cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_frontalface_default.xml');found=False;messagebox.showinfo('Visión artificial',f'Usando {name}. Pulsa M para cambiar entre cámara normal y espejo, y Q para salir. Solo detecta rostros.')
+        try:
+            while True:
+                ok,frame=cap.read()
+                if not ok:break
+                if mirror:frame=cv2.flip(frame,1)
+                gray=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY);faces=cascade.detectMultiScale(gray,1.2,5,minSize=(60,60))
+                for x,y,w,h in faces:cv2.rectangle(frame,(x,y),(x+w,y+h),(40,180,120),2);found=True
+                cv2.imshow('Aurora | detección facial',frame)
+                k=cv2.waitKey(1)&0xff
+                if k==ord('q'):break
+                if k==ord('m'):mirror=not mirror
+        finally:cap.release();cv2.destroyAllWindows()
+        self.store.log(self.user['id'],'Visión artificial',('Rostro detectado' if found else 'Sin detección')+' · '+name);messagebox.showinfo('Resultado','Se detectó un rostro.' if found else 'No se detectó un rostro.')
+    def voice_command(self):
+        if not self.user['voice']:messagebox.showinfo('Voz desactivada','Activa los comandos de voz en Perfil.');return
+        try:import speech_recognition as sr
+        except ImportError:messagebox.showwarning('Voz opcional','Instala con: pip install SpeechRecognition pyaudio');return
+        try:
+            r=sr.Recognizer();messagebox.showinfo('Comando de voz','Di una consulta de navegación, por ejemplo “abrir movimientos”. No se ejecutan operaciones monetarias por voz.')
+            with sr.Microphone() as source:r.adjust_for_ambient_noise(source,duration=.4);audio=r.listen(source,timeout=5,phrase_time_limit=5)
+            phrase=r.recognize_google(audio,language='es-MX').lower();self.store.log(self.user['id'],'Comando de voz',phrase)
+            if 'movimiento' in phrase or 'historial' in phrase:self.history()
+            elif 'ahorro' in phrase:self.savings()
+            elif 'inversión' in phrase or 'inversion' in phrase:self.investments()
+            elif 'servicio' in phrase:self.services()
+            elif 'perfil' in phrase or 'seguridad' in phrase:self.profile()
+            else:messagebox.showinfo('Comando reconocido',f'Escuché: {phrase}. No tiene una acción asociada.')
+        except Exception as e:messagebox.showwarning('No se reconoció','Revisa el micrófono y, para reconocimiento en línea, la conexión a internet.\n'+str(e))
+    def balance_query(self):
+        w=self.modal('Consulta de saldo','480x380');b=self.panel(w,WHITE,padx=24,pady=20);b.pack(fill='both',expand=True,padx=14,pady=14)
+        self.label(b,'Consulta de saldo',18,INK,True).pack(anchor='w')
+        self.label(b,f'Cada consulta de saldo tiene una comisión de {pesos(QUERY_FEE)}, que se descuenta de tu cuenta.',10,MUTED,wraplength=410,justify='left').pack(anchor='w',pady=10)
+        def go():
+            if not messagebox.askyesno('Comisión por consulta',f'Se cobrará {pesos(QUERY_FEE)}. ¿Continuar?',parent=w):return
+            try:bal=self.store.consult(self.user['id'])
+            except Exception as e:messagebox.showerror('Consulta no realizada',str(e),parent=w);return
+            self.last_receipt=f'CONSULTA DE SALDO\nComisión: {pesos(QUERY_FEE)}\nFecha: {stamp()}';self.done(w,f'Saldo disponible: {pesos(bal)}\nComisión cobrada: {pesos(QUERY_FEE)}')
+        self.btn(b,'CONSULTAR SALDO',go,True).pack(fill='x',pady=18)
+    def alerts(self):
+        w=self.modal('Alertas de movimientos','780x520');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Alertas de movimientos',17,INK,True).pack(anchor='w',pady=(0,10))
+        t=self.tree(b,('fecha','alerta','estado'),(160,470,90))
+        for r in self.store.db.execute('SELECT * FROM alerts WHERE user_id=? ORDER BY id DESC LIMIT 200',(self.user['id'],)).fetchall():t.insert('','end',values=(r['created'],r['message'],'Leída' if r['seen'] else 'Nueva'))
+        def mark():
+            self.store.db.execute('UPDATE alerts SET seen=1 WHERE user_id=?',(self.user['id'],));self.store.db.commit();w.destroy();self.dashboard()
+        self.btn(b,'Marcar todas como leídas',mark,True).pack(anchor='e',pady=10)
+    def cards(self):
+        w=self.modal('Tarjetas vinculadas','680x640');b=self.panel(w,WHITE,padx=20,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12)
+        self.label(b,'Tarjetas ligadas a tu cuenta',17,INK,True).pack(anchor='w')
+        self.label(b,'Tu tarjeta de débito está ligada a tu cuenta. Puedes vincular tarjetas de crédito. Simulación: solo se guardan los últimos 4 dígitos; no escribas datos de una tarjeta real.',9,MUTED,wraplength=620,justify='left').pack(anchor='w',pady=6)
+        top=self.panel(b,WHITE);top.pack(fill='x');t=self.tree(top,('tipo','tarjeta','titular','vence'),(90,200,220,80));t.configure(height=5)
+        def load():
+            for i in t.get_children():t.delete(i)
+            for r in self.store.cards(self.user['id']):t.insert('','end',iid=str(r['id']),values=(r['kind'],f"**** **** **** {r['last4']}",r['holder'],r['expiry']))
+        load();self.label(b,'Vincular tarjeta de crédito',12,GOLD,True).pack(anchor='w',pady=(14,0))
+        number=self.field(b,'NÚMERO DE TARJETA');holder=self.field(b,'NOMBRE DEL TITULAR',self.user['name']);expiry=self.field(b,'VIGENCIA (MM/AA)')
+        def link():
+            try:self.store.link_credit(self.user['id'],number.get(),holder.get(),expiry.get())
+            except ValueError as e:messagebox.showerror('No se pudo vincular',str(e),parent=w);return
+            number.delete(0,'end');expiry.delete(0,'end');load();messagebox.showinfo('Tarjeta vinculada','Tarjeta de crédito vinculada a tu cuenta.',parent=w)
+        def unlink():
+            sel=t.selection()
+            if not sel:messagebox.showinfo('Selecciona una tarjeta','Elige una tarjeta de crédito de la lista.',parent=w);return
+            if not messagebox.askyesno('Desvincular','¿Desvincular la tarjeta seleccionada?',parent=w):return
+            if self.store.unlink_card(self.user['id'],int(sel[0])):self.store.log(self.user['id'],'Tarjeta desvinculada','Crédito');load()
+            else:messagebox.showinfo('No permitido','La tarjeta de débito está ligada a la cuenta y no se puede desvincular.',parent=w)
+        self.btn(b,'VINCULAR TARJETA DE CRÉDITO',link,True).pack(fill='x',pady=(14,4));self.btn(b,'Desvincular tarjeta seleccionada',unlink).pack(fill='x',pady=4)
+    def chat(self):
+        w=self.modal('Atención al cliente Aurora','600x560');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Asistente Aurora',18,INK,True).pack(anchor='w');self.label(b,'Ayuda automática local, sin servidor.',9,MUTED).pack(anchor='w',pady=4);out=tk.Text(b,bg='#FBFAF6',fg=INK,wrap='word',relief='flat',height=18);out.pack(fill='both',expand=True);out.insert('end','Aurora: Puedo ayudarte con saldo, transferencias, NIP, ahorro, inversiones, comisiones, tarjetas, alertas y servicios.\n\n');row=self.panel(b,WHITE);row.pack(fill='x',pady=8);e=self.entry(row);e.pack(side='left',fill='x',expand=True,padx=(0,8))
+        dirty=[False]
+        def close():
+            w.destroy()
+            if dirty[0] and self.user:self.refresh()
+        w.protocol('WM_DELETE_WINDOW',close)
+        def answer():
+            q=e.get().strip();low=q.lower()
+            if not q:return
+            if 'comisión' in low or 'comision' in low:a=f'Consulta de saldo: {pesos(QUERY_FEE)}. Transferencia a una cuenta de otro banco: {pesos(EXTERNAL_FEE)}. Entre cuentas Aurora no hay comisión.'
+            elif 'saldo' in low:
+                if messagebox.askyesno('Comisión por consulta',f'Consultar tu saldo tiene una comisión de {pesos(QUERY_FEE)}. ¿Deseas continuar?',parent=w):
+                    try:bal=self.store.consult(self.user['id']);dirty[0]=True;a=f'Tu saldo es {pesos(bal)}. Se cobró la comisión de consulta de {pesos(QUERY_FEE)}.'
+                    except ValueError as ex:a='No se pudo hacer la consulta: '+str(ex)
+                else:a='Consulta cancelada. No se cobró comisión.'
+            elif 'transfer' in low:a=f'Abre Transferencias. A otro banco la comisión es de {pesos(EXTERNAL_FEE)}; entre cuentas Aurora no tiene costo.'
+            elif 'nip' in low or 'clave' in low:a='Puedes cambiar tu NIP desde Perfil y seguridad. No se aceptan NIP fáciles como 1234 y tras 3 intentos fallidos la cuenta se limita por unos minutos.'
+            elif 'ahorro' in low or 'presupuesto' in low:a='Abre Ahorro y presupuesto para editar tu meta y límite mensual.'
+            elif 'invers' in low:a='En Cuenta de inversión puedes simular un plazo con tasas ilustrativas.'
+            elif 'servicio' in low or 'agua' in low:a='Abre Pagar servicios para simular pagos de agua, TV, teléfono, internet o electricidad.'
+            elif 'tarjeta' in low:a='En Tarjetas vinculadas ves tu tarjeta de débito y puedes ligar tarjetas de crédito.'
+            elif 'alerta' in low or 'aviso' in low:a='En Alertas de movimientos ves un aviso por cada operación de tu cuenta.'
+            else:a='Prueba preguntar por saldo, transferencia, NIP, ahorro, inversión, comisiones, tarjetas o servicios.'
+            out.insert('end',f'Tú: {q}\nAurora: {a}\n\n');out.see('end');e.delete(0,'end');self.store.log(self.user['id'],'Chatbot',q[:150])
+        self.btn(row,'Enviar',answer,True).pack(side='right');e.bind('<Return>',lambda ev:answer())
+    def logout(self):
+        if self.user:self.store.log(self.user['id'],'Cierre de sesión','Sesión cerrada')
+        self.user=None;self.login_screen()
+ 
+def main():
+    root=tk.Tk();Aurora(root);root.mainloop()
+if __name__=='__main__':main()
