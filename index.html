@@ -1,569 +1,5355 @@
 # -*- coding: utf-8 -*-
-'''BANCO AURORA | Simulador bancario educativo. Sin servidor ni dinero real.'''
+"""BANCO AURORA | Simulador bancario educativo. Sin servidor ni dinero real."""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
-import sqlite3, hashlib, secrets, csv, json, os, webbrowser, urllib.parse, subprocess, sys, math, re
+import sqlite3
+import hashlib
+import secrets
+import csv
+import json
+import os
+import webbrowser
+import urllib.parse
+import subprocess
+import sys
+import math
+import re
 from pathlib import Path
 from datetime import datetime, timedelta
- 
-APP_DIR=Path.home()/'.banco_aurora_nuevo'; APP_DIR.mkdir(exist_ok=True)
-DB_FILE=APP_DIR/'aurora.sqlite3'
-BG='#F4F1E9'; WHITE='#FFFFFF'; INK='#17191E'; GOLD='#B28A35'; GOLD_LIGHT='#E8D7A8'; MUTED='#72757C'; GREEN='#247A58'; RED='#A83232'; LINE='#E2DED4'
- 
-QUERY_FEE=20.0; EXTERNAL_FEE=35.0; MAX_ATTEMPTS=3; LOCK_MINUTES=15
-CREDIT_KINDS=('Depósito','Depósito inicial','Cashback','Ajuste positivo','Reembolso','Ahorro liberado','Transferencia recibida')
-LIMITED_KINDS=('Retiro','Transferencia enviada','Pago de servicio','Inversión')
-WEAK_PINS={'1234','4321','0000','2580','1122','6969','1004','2000','2020'}
- 
-def stamp(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-def pesos(n): return f'${float(n):,.2f} MXN'
-def pin_hash(pin,salt=None):
-    salt=salt or secrets.token_hex(16)
-    return salt,hashlib.pbkdf2_hmac('sha256',pin.encode(),salt.encode(),140000).hex()
- 
+
+
+APP_DIR = Path.home() / ".banco_aurora_nuevo"
+APP_DIR.mkdir(exist_ok=True)
+DB_FILE = APP_DIR / "aurora.sqlite3"
+
+BG = "#0A1324"
+WHITE = "#152438"
+INK = "#F0F1EF"
+GOLD = "#D5B887"
+GOLD_LIGHT = "#EFDBB6"
+MUTED = "#AFBDCE"
+GREEN = "#9BD8BD"
+RED = "#F0ACA4"
+LINE = "#34465C"
+FIELD = "#0C1A2A"
+SURFACE_ALT = "#1D2E43"
+
+QUERY_FEE = 20.0
+EXTERNAL_FEE = 35.0
+MAX_ATTEMPTS = 3
+LOCK_MINUTES = 15
+
+CREDIT_KINDS = (
+    "Depósito",
+    "Depósito inicial",
+    "Cashback",
+    "Ajuste positivo",
+    "Reembolso",
+    "Ahorro liberado",
+    "Transferencia recibida",
+)
+
+LIMITED_KINDS = (
+    "Retiro",
+    "Transferencia enviada",
+    "Pago de servicio",
+    "Inversión",
+)
+
+WEAK_PINS = {
+    "1234",
+    "4321",
+    "0000",
+    "2580",
+    "1122",
+    "6969",
+    "1004",
+    "2000",
+    "2020",
+}
+
+
+def stamp():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def pesos(n):
+    return f"${float(n):,.2f} MXN"
+
+
+def pin_hash(pin, salt=None):
+    salt = salt or secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        pin.encode(),
+        salt.encode(),
+        140000,
+    ).hex()
+    return salt, digest
+
+
 def num(text):
-    """Convierte texto a número finito; evita errores en inglés y valores como nan/inf."""
-    try: v=float(str(text).replace(',','').strip())
-    except ValueError: raise ValueError('Escribe un número válido (sin letras ni símbolos).') from None
-    if not math.isfinite(v): raise ValueError('Escribe un número válido (sin letras ni símbolos).')
-    return v
-def pin_problem(pin,allow_weak=False):
-    """Devuelve el motivo por el que un NIP no es aceptable, o None si es válido."""
-    p=str(pin)
-    if not (p.isascii() and p.isdigit()) or len(p)<4: return 'El NIP debe tener al menos 4 dígitos (solo números).'
-    if allow_weak: return None
-    if p in WEAK_PINS: return 'Ese NIP es demasiado común (por ejemplo 1234). Elige otro.'
-    if any(len(p)%k==0 and p==p[:k]*(len(p)//k) for k in range(1,len(p)//2+1)): return 'No uses NIP repetidos como 0000, 1212 o 123123.'
-    d=[(int(b)-int(a))%10 for a,b in zip(p,p[1:])]
-    if all(x==1 for x in d) or all(x==9 for x in d): return 'No uses secuencias como 1234, 4321 o 7890.'
+    try:
+        value = float(str(text).replace(",", "").strip())
+    except ValueError:
+        raise ValueError(
+            "Escribe un número válido (sin letras ni símbolos)."
+        ) from None
+
+    if not math.isfinite(value):
+        raise ValueError(
+            "Escribe un número válido (sin letras ni símbolos)."
+        )
+
+    return value
+
+
+def pin_problem(pin, allow_weak=False):
+    p = str(pin)
+
+    if not (p.isascii() and p.isdigit()) or len(p) < 4:
+        return "El NIP debe tener al menos 4 dígitos (solo números)."
+
+    if allow_weak:
+        return None
+
+    if p in WEAK_PINS:
+        return (
+            "Ese NIP es demasiado común (por ejemplo 1234). "
+            "Elige otro."
+        )
+
+    if any(
+        len(p) % k == 0 and p == p[:k] * (len(p) // k)
+        for k in range(1, len(p) // 2 + 1)
+    ):
+        return "No uses NIP repetidos como 0000, 1212 o 123123."
+
+    differences = [
+        (int(b) - int(a)) % 10
+        for a, b in zip(p, p[1:])
+    ]
+
+    if (
+        all(value == 1 for value in differences)
+        or all(value == 9 for value in differences)
+    ):
+        return "No uses secuencias como 1234, 4321 o 7890."
+
     return None
-def luhn_ok(n):
-    total=0
-    for i,ch in enumerate(reversed(n)):
-        d=int(ch)
-        if i%2:
-            d*=2
-            if d>9: d-=9
-        total+=d
-    return total%10==0
-def luhn_digit(partial): return next(str(d) for d in range(10) if luhn_ok(partial+str(d)))
- 
+
+
+def luhn_ok(number):
+    total = 0
+
+    for index, character in enumerate(reversed(number)):
+        digit = int(character)
+
+        if index % 2:
+            digit *= 2
+
+            if digit > 9:
+                digit -= 9
+
+        total += digit
+
+    return total % 10 == 0
+
+
+def luhn_digit(partial):
+    return next(
+        str(digit)
+        for digit in range(10)
+        if luhn_ok(partial + str(digit))
+    )
+
+
 class Store:
-    def __init__(self,path=DB_FILE):
-        self.db=sqlite3.connect(path); self.db.row_factory=sqlite3.Row; self.db.execute('PRAGMA foreign_keys=ON'); self.setup()
+    def __init__(self, path=DB_FILE):
+        self.db = sqlite3.connect(path)
+        self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA foreign_keys=ON")
+        self.setup()
+
     def setup(self):
-        self.db.executescript('''
-        CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,name TEXT NOT NULL,username TEXT UNIQUE NOT NULL,account TEXT UNIQUE NOT NULL,clabe TEXT UNIQUE NOT NULL,salt TEXT NOT NULL,pinhash TEXT NOT NULL,balance REAL NOT NULL DEFAULT 0,currency TEXT NOT NULL DEFAULT 'MXN',daily_limit REAL NOT NULL DEFAULT 10000,blocked INTEGER NOT NULL DEFAULT 0,voice INTEGER NOT NULL DEFAULT 0,face INTEGER NOT NULL DEFAULT 0,failed_attempts INTEGER NOT NULL DEFAULT 0,locked_until TEXT,created TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS tx(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,kind TEXT NOT NULL,amount REAL NOT NULL,fee REAL NOT NULL DEFAULT 0,detail TEXT NOT NULL,currency TEXT NOT NULL DEFAULT 'MXN',created TEXT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY,user_id INTEGER,action TEXT,detail TEXT,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS savings(user_id INTEGER PRIMARY KEY,name TEXT NOT NULL DEFAULT 'Mi meta',target REAL NOT NULL DEFAULT 5000,saved REAL NOT NULL DEFAULT 0,monthly_budget REAL NOT NULL DEFAULT 8000,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS scheduled(id INTEGER PRIMARY KEY,user_id INTEGER,recipient TEXT,amount REAL,note TEXT,run_at TEXT,status TEXT DEFAULT 'Pendiente',created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS investments(id INTEGER PRIMARY KEY,user_id INTEGER,product TEXT,amount REAL,rate REAL,days INTEGER,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS joint(id INTEGER PRIMARY KEY,user_id INTEGER,name TEXT,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS services(id INTEGER PRIMARY KEY,user_id INTEGER,service TEXT,reference TEXT,amount REAL,created TEXT,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS alerts(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,message TEXT NOT NULL,created TEXT NOT NULL,seen INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(user_id) REFERENCES users(id));
-        CREATE TABLE IF NOT EXISTS cards(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,kind TEXT NOT NULL,last4 TEXT NOT NULL,holder TEXT NOT NULL,expiry TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id));
-        '''); self.db.commit()
-        # Migración: bases de datos creadas con versiones anteriores no tienen las columnas de límite de acceso.
-        cols={r['name'] for r in self.db.execute('PRAGMA table_info(users)')}
-        for col,ddl in (('failed_attempts','INTEGER NOT NULL DEFAULT 0'),('locked_until','TEXT')):
-            if col not in cols: self.db.execute(f'ALTER TABLE users ADD COLUMN {col} {ddl}')
-        if not self.db.execute('SELECT id FROM users LIMIT 1').fetchone():
-            uid=self.create_user('Usuario Demo','demo','1234',25000,allow_weak=True)  # NIP 1234 permitido solo para la cuenta demo del sistema
-            self.log(uid,'Sistema','Cuenta de demostración creada')
-        # Toda cuenta debe tener su tarjeta de débito ligada (también las creadas antes de esta versión).
-        for u in self.db.execute("SELECT id FROM users WHERE id NOT IN (SELECT user_id FROM cards WHERE kind='Débito')").fetchall(): self.create_card(u['id'],'Débito')
+        self.db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS users(
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                username TEXT UNIQUE NOT NULL,
+                account TEXT UNIQUE NOT NULL,
+                clabe TEXT UNIQUE NOT NULL,
+                salt TEXT NOT NULL,
+                pinhash TEXT NOT NULL,
+                balance REAL NOT NULL DEFAULT 0,
+                currency TEXT NOT NULL DEFAULT 'MXN',
+                daily_limit REAL NOT NULL DEFAULT 10000,
+                blocked INTEGER NOT NULL DEFAULT 0,
+                voice INTEGER NOT NULL DEFAULT 0,
+                face INTEGER NOT NULL DEFAULT 0,
+                failed_attempts INTEGER NOT NULL DEFAULT 0,
+                locked_until TEXT,
+                created TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS tx(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                amount REAL NOT NULL,
+                fee REAL NOT NULL DEFAULT 0,
+                detail TEXT NOT NULL,
+                currency TEXT NOT NULL DEFAULT 'MXN',
+                created TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS logs(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                action TEXT,
+                detail TEXT,
+                created TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS savings(
+                user_id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL DEFAULT 'Mi meta',
+                target REAL NOT NULL DEFAULT 5000,
+                saved REAL NOT NULL DEFAULT 0,
+                monthly_budget REAL NOT NULL DEFAULT 8000,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS scheduled(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                recipient TEXT,
+                amount REAL,
+                note TEXT,
+                run_at TEXT,
+                status TEXT DEFAULT 'Pendiente',
+                created TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS investments(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                product TEXT,
+                amount REAL,
+                rate REAL,
+                days INTEGER,
+                created TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS joint(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                name TEXT,
+                created TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS services(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                service TEXT,
+                reference TEXT,
+                amount REAL,
+                created TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS alerts(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                message TEXT NOT NULL,
+                created TEXT NOT NULL,
+                seen INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS cards(
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                last4 TEXT NOT NULL,
+                holder TEXT NOT NULL,
+                expiry TEXT NOT NULL,
+                created TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+            """
+        )
         self.db.commit()
-    def create_user(self,name,username,pin,initial=0,allow_weak=False):
-        name,username=str(name).strip(),str(username).strip()
-        if not name or not username: raise ValueError('El nombre y usuario son obligatorios.')
-        problem=pin_problem(pin,allow_weak)
-        if problem: raise ValueError(problem)
-        initial=num(initial)
-        if initial<0: raise ValueError('El saldo inicial no puede ser negativo.')
-        salt,digest=pin_hash(str(pin)); account='AU'+''.join(secrets.choice('0123456789') for _ in range(10)); clabe='646'+''.join(secrets.choice('0123456789') for _ in range(15))
-        cur=self.db.cursor(); cur.execute('INSERT INTO users(name,username,account,clabe,salt,pinhash,balance,created) VALUES(?,?,?,?,?,?,?,?)',(name,username,account,clabe,salt,digest,0.0,stamp()))
-        uid=cur.lastrowid; self.db.execute('INSERT INTO savings(user_id) VALUES(?)',(uid,)); self.create_card(uid,'Débito')
-        if initial: self.add_tx(uid,'Depósito inicial',initial,'Saldo inicial de demostración')
-        self.db.commit(); return uid
-    def user_login(self,login): return self.db.execute('SELECT * FROM users WHERE username=? OR account=? OR clabe=?',(login,login,login)).fetchone()
-    def verify(self,u,pin):
-        return secrets.compare_digest(pin_hash(str(pin),u['salt'])[1],u['pinhash'])
-    def log(self,uid,action,detail): self.db.execute('INSERT INTO logs(user_id,action,detail,created) VALUES(?,?,?,?)',(uid,action,detail,stamp())); self.db.commit()
-    def add_tx(self,uid,kind,amount,detail,fee=0,currency='MXN'):
-        amount=float(amount); fee=float(fee)
-        if not math.isfinite(amount) or not math.isfinite(fee) or amount<=0 or fee<0: raise ValueError('El importe debe ser mayor que cero.')
-        u=self.db.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone()
-        credit=kind in CREDIT_KINDS
-        if not credit and u['balance']+1e-8<amount+fee: raise ValueError('Saldo insuficiente.')
+
+        columns = {
+            row["name"]
+            for row in self.db.execute("PRAGMA table_info(users)")
+        }
+
+        for column, definition in (
+            ("failed_attempts", "INTEGER NOT NULL DEFAULT 0"),
+            ("locked_until", "TEXT"),
+        ):
+            if column not in columns:
+                self.db.execute(
+                    f"ALTER TABLE users ADD COLUMN {column} {definition}"
+                )
+
+        if not self.db.execute(
+            "SELECT id FROM users LIMIT 1"
+        ).fetchone():
+            uid = self.create_user(
+                "Usuario Demo",
+                "demo",
+                "1234",
+                25000,
+                allow_weak=True,
+            )
+            self.log(
+                uid,
+                "Sistema",
+                "Cuenta de demostración creada",
+            )
+
+        users_without_card = self.db.execute(
+            """
+            SELECT id FROM users
+            WHERE id NOT IN (
+                SELECT user_id FROM cards WHERE kind='Débito'
+            )
+            """
+        ).fetchall()
+
+        for user in users_without_card:
+            self.create_card(user["id"], "Débito")
+
+        self.db.commit()
+
+    def create_user(
+        self,
+        name,
+        username,
+        pin,
+        initial=0,
+        allow_weak=False,
+    ):
+        name = str(name).strip()
+        username = str(username).strip()
+
+        if not name or not username:
+            raise ValueError("El nombre y usuario son obligatorios.")
+
+        problem = pin_problem(pin, allow_weak)
+
+        if problem:
+            raise ValueError(problem)
+
+        initial = num(initial)
+
+        if initial < 0:
+            raise ValueError("El saldo inicial no puede ser negativo.")
+
+        salt, digest = pin_hash(str(pin))
+
+        account = "AU" + "".join(
+            secrets.choice("0123456789") for _ in range(10)
+        )
+
+        clabe = "646" + "".join(
+            secrets.choice("0123456789") for _ in range(15)
+        )
+
+        cursor = self.db.cursor()
+        cursor.execute(
+            """
+            INSERT INTO users(
+                name, username, account, clabe,
+                salt, pinhash, balance, created
+            )
+            VALUES(?,?,?,?,?,?,?,?)
+            """,
+            (
+                name,
+                username,
+                account,
+                clabe,
+                salt,
+                digest,
+                0.0,
+                stamp(),
+            ),
+        )
+
+        uid = cursor.lastrowid
+
+        self.db.execute(
+            "INSERT INTO savings(user_id) VALUES(?)",
+            (uid,),
+        )
+
+        self.create_card(uid, "Débito")
+
+        if initial:
+            self.add_tx(
+                uid,
+                "Depósito inicial",
+                initial,
+                "Saldo inicial de demostración",
+            )
+
+        self.db.commit()
+        return uid
+
+    def user_login(self, login):
+        return self.db.execute(
+            """
+            SELECT * FROM users
+            WHERE username=? OR account=? OR clabe=?
+            """,
+            (login, login, login),
+        ).fetchone()
+
+    def verify(self, user, pin):
+        return secrets.compare_digest(
+            pin_hash(str(pin), user["salt"])[1],
+            user["pinhash"],
+        )
+
+    def log(self, uid, action, detail):
+        self.db.execute(
+            """
+            INSERT INTO logs(user_id,action,detail,created)
+            VALUES(?,?,?,?)
+            """,
+            (uid, action, detail, stamp()),
+        )
+        self.db.commit()
+
+    def add_tx(
+        self,
+        uid,
+        kind,
+        amount,
+        detail,
+        fee=0,
+        currency="MXN",
+    ):
+        amount = float(amount)
+        fee = float(fee)
+
+        if (
+            not math.isfinite(amount)
+            or not math.isfinite(fee)
+            or amount <= 0
+            or fee < 0
+        ):
+            raise ValueError("El importe debe ser mayor que cero.")
+
+        user = self.db.execute(
+            "SELECT * FROM users WHERE id=?",
+            (uid,),
+        ).fetchone()
+
+        credit = kind in CREDIT_KINDS
+
+        if not credit and user["balance"] + 1e-8 < amount + fee:
+            raise ValueError("Saldo insuficiente.")
+
         if kind in LIMITED_KINDS:
-            day=datetime.now().strftime('%Y-%m-%d'); marks=','.join('?'*len(LIMITED_KINDS))
-            spent=self.db.execute(f"SELECT COALESCE(SUM(amount+fee),0) FROM tx WHERE user_id=? AND substr(created,1,10)=? AND kind IN ({marks})",(uid,day,*LIMITED_KINDS)).fetchone()[0]
-            if spent+amount+fee>u['daily_limit']: raise ValueError('La operación supera tu límite diario.')
-        delta=amount if credit else -amount-fee
-        self.db.execute('UPDATE users SET balance=balance+? WHERE id=?',(delta,uid))
-        self.db.execute('INSERT INTO tx(user_id,kind,amount,fee,detail,currency,created) VALUES(?,?,?,?,?,?,?)',(uid,kind,amount,fee,detail,currency,stamp()))
-        if kind!='Depósito inicial':  # alerta de movimiento (sin mostrar el saldo, porque consultarlo tiene comisión)
-            msg=f'{kind} por {pesos(amount)}'+(f' (comisión {pesos(fee)})' if fee else '')+f' · {str(detail)[:70]}'
-            self.db.execute('INSERT INTO alerts(user_id,message,created,seen) VALUES(?,?,?,0)',(uid,msg,stamp()))
+            day = datetime.now().strftime("%Y-%m-%d")
+            marks = ",".join("?" * len(LIMITED_KINDS))
+
+            spent = self.db.execute(
+                f"""
+                SELECT COALESCE(SUM(amount+fee),0)
+                FROM tx
+                WHERE user_id=?
+                AND substr(created,1,10)=?
+                AND kind IN ({marks})
+                """,
+                (uid, day, *LIMITED_KINDS),
+            ).fetchone()[0]
+
+            if spent + amount + fee > user["daily_limit"]:
+                raise ValueError("La operación supera tu límite diario.")
+
+        delta = amount if credit else -amount - fee
+
+        self.db.execute(
+            "UPDATE users SET balance=balance+? WHERE id=?",
+            (delta, uid),
+        )
+
+        self.db.execute(
+            """
+            INSERT INTO tx(
+                user_id,kind,amount,fee,detail,currency,created
+            )
+            VALUES(?,?,?,?,?,?,?)
+            """,
+            (
+                uid,
+                kind,
+                amount,
+                fee,
+                detail,
+                currency,
+                stamp(),
+            ),
+        )
+
+        if kind != "Depósito inicial":
+            message = f"{kind} por {pesos(amount)}"
+
+            if fee:
+                message += f" (comisión {pesos(fee)})"
+
+            message += f" · {str(detail)[:70]}"
+
+            self.db.execute(
+                """
+                INSERT INTO alerts(
+                    user_id,message,created,seen
+                )
+                VALUES(?,?,?,0)
+                """,
+                (uid, message, stamp()),
+            )
+
         self.db.commit()
-    def find_account(self,dest): return self.db.execute('SELECT * FROM users WHERE account=? OR clabe=?',(str(dest).strip(),str(dest).strip())).fetchone()
-    def transfer(self,uid,dest,amount,note):
-        '''Cuenta Aurora: sin comisión y se acredita al destinatario. Cuenta que NO pertenece al banco: comisión de $35.'''
-        dest=str(dest).strip()
-        if not dest: raise ValueError('Escribe el destinatario.')
-        sender=self.db.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone(); target=self.find_account(dest)
-        if target and target['id']==uid: raise ValueError('No puedes transferir a tu propia cuenta.')
-        if target and target['blocked']: raise ValueError('La cuenta destino no puede recibir transferencias.')
-        fee=0.0 if target else EXTERNAL_FEE
-        self.add_tx(uid,'Transferencia enviada',amount,f'{note} | Destino: {dest}',fee)
-        if target: self.add_tx(target['id'],'Transferencia recibida',amount,f"{note} | Origen: {sender['account']}")
-        if fee: self.db.execute('INSERT INTO tx(user_id,kind,amount,fee,detail,currency,created) VALUES(?,?,?,?,?,?,?)',(uid,'Comisión',fee,0,'Comisión de transferencia externa','MXN',stamp())); self.db.commit()
-        self.log(uid,'Transferencia',dest); return fee,bool(target)
-    def consult(self,uid):
-        '''Consulta de saldo con comisión de $20. Si no alcanza para la comisión, no se cobra ni se muestra nada.'''
-        self.add_tx(uid,'Comisión por consulta',QUERY_FEE,'Consulta de saldo'); self.log(uid,'Consulta de saldo',f'Comisión {QUERY_FEE:.2f}')
-        return self.db.execute('SELECT balance FROM users WHERE id=?',(uid,)).fetchone()[0]
-    def run_scheduled(self,uid):
-        rows=self.db.execute("SELECT * FROM scheduled WHERE user_id=? AND status='Pendiente' AND run_at<=?",(uid,stamp())).fetchall()
-        for r in rows:
-            try: self.transfer(uid,r['recipient'],r['amount'],f"Programada: {r['note']}"); status='Ejecutada'
-            except ValueError as e: status='No ejecutada: '+str(e)
-            self.db.execute('UPDATE scheduled SET status=? WHERE id=?',(status,r['id'])); self.log(uid,'Transferencia programada',status)
+
+    def find_account(self, destination):
+        destination = str(destination).strip()
+
+        return self.db.execute(
+            "SELECT * FROM users WHERE account=? OR clabe=?",
+            (destination, destination),
+        ).fetchone()
+
+    def transfer(self, uid, destination, amount, note):
+        destination = str(destination).strip()
+
+        if not destination:
+            raise ValueError("Escribe el destinatario.")
+
+        sender = self.db.execute(
+            "SELECT * FROM users WHERE id=?",
+            (uid,),
+        ).fetchone()
+
+        target = self.find_account(destination)
+
+        if target and target["id"] == uid:
+            raise ValueError("No puedes transferir a tu propia cuenta.")
+
+        if target and target["blocked"]:
+            raise ValueError(
+                "La cuenta destino no puede recibir transferencias."
+            )
+
+        fee = 0.0 if target else EXTERNAL_FEE
+
+        self.add_tx(
+            uid,
+            "Transferencia enviada",
+            amount,
+            f"{note} | Destino: {destination}",
+            fee,
+        )
+
+        if target:
+            self.add_tx(
+                target["id"],
+                "Transferencia recibida",
+                amount,
+                f"{note} | Origen: {sender['account']}",
+            )
+
+        if fee:
+            self.db.execute(
+                """
+                INSERT INTO tx(
+                    user_id,kind,amount,fee,detail,currency,created
+                )
+                VALUES(?,?,?,?,?,?,?)
+                """,
+                (
+                    uid,
+                    "Comisión",
+                    fee,
+                    0,
+                    "Comisión de transferencia externa",
+                    "MXN",
+                    stamp(),
+                ),
+            )
+            self.db.commit()
+
+        self.log(uid, "Transferencia", destination)
+        return fee, bool(target)
+
+    def consult(self, uid):
+        self.add_tx(
+            uid,
+            "Comisión por consulta",
+            QUERY_FEE,
+            "Consulta de saldo",
+        )
+
+        self.log(
+            uid,
+            "Consulta de saldo",
+            f"Comisión {QUERY_FEE:.2f}",
+        )
+
+        return self.db.execute(
+            "SELECT balance FROM users WHERE id=?",
+            (uid,),
+        ).fetchone()[0]
+
+    def run_scheduled(self, uid):
+        rows = self.db.execute(
+            """
+            SELECT * FROM scheduled
+            WHERE user_id=?
+            AND status='Pendiente'
+            AND run_at<=?
+            """,
+            (uid, stamp()),
+        ).fetchall()
+
+        for row in rows:
+            try:
+                self.transfer(
+                    uid,
+                    row["recipient"],
+                    row["amount"],
+                    f"Programada: {row['note']}",
+                )
+                status = "Ejecutada"
+            except ValueError as error:
+                status = "No ejecutada: " + str(error)
+
+            self.db.execute(
+                "UPDATE scheduled SET status=? WHERE id=?",
+                (status, row["id"]),
+            )
+
+            self.log(
+                uid,
+                "Transferencia programada",
+                status,
+            )
+
         self.db.commit()
-    # --- límite de acceso por cuenta
-    def lock_remaining(self,u):
-        if not u['locked_until']: return 0
-        return max(0,int((datetime.strptime(u['locked_until'],'%Y-%m-%d %H:%M:%S')-datetime.now()).total_seconds()))
-    def failed_login(self,u):
-        n=u['failed_attempts']+1
-        if n>=MAX_ATTEMPTS:
-            until=(datetime.now()+timedelta(minutes=LOCK_MINUTES)).strftime('%Y-%m-%d %H:%M:%S')
-            self.db.execute('UPDATE users SET failed_attempts=0,locked_until=? WHERE id=?',(until,u['id'])); self.log(u['id'],'Acceso limitado',f'{MAX_ATTEMPTS} intentos fallidos'); return 0,True
-        self.db.execute('UPDATE users SET failed_attempts=? WHERE id=?',(n,u['id'])); self.log(u['id'],'Acceso rechazado','NIP incorrecto'); return MAX_ATTEMPTS-n,False
-    def reset_attempts(self,uid): self.db.execute('UPDATE users SET failed_attempts=0,locked_until=NULL WHERE id=?',(uid,)); self.db.commit()
-    # --- alertas de movimientos
-    def unread_alerts(self,uid): return self.db.execute('SELECT COUNT(*) FROM alerts WHERE user_id=? AND seen=0',(uid,)).fetchone()[0]
-    # --- tarjetas ligadas (solo se guardan los últimos 4 dígitos; nunca el número completo)
-    def cards(self,uid): return self.db.execute('SELECT * FROM cards WHERE user_id=? ORDER BY id',(uid,)).fetchall()
-    def create_card(self,uid,kind,number=None,holder=None,expiry=None):
-        u=self.db.execute('SELECT name FROM users WHERE id=?',(uid,)).fetchone()
-        if number is None: partial='5'+''.join(secrets.choice('0123456789') for _ in range(14)); number=partial+luhn_digit(partial)
-        if expiry is None: d=datetime.now(); expiry=f'{d.month:02d}/{(d.year+4)%100:02d}'
-        self.db.execute('INSERT INTO cards(user_id,kind,last4,holder,expiry,created) VALUES(?,?,?,?,?,?)',(uid,kind,number[-4:],(holder or u['name']).upper(),expiry,stamp()))
-    def link_credit(self,uid,number,holder,expiry):
-        number=re.sub(r'[\s-]','',str(number)); holder=str(holder).strip(); expiry=str(expiry).strip(); m=re.fullmatch(r'(0[1-9]|1[0-2])/(\d{2})',expiry)
-        if not re.fullmatch(r'\d{13,19}',number,re.ASCII) or not luhn_ok(number): raise ValueError('Número de tarjeta no válido.')
-        if not holder: raise ValueError('Escribe el nombre del titular.')
-        if not m: raise ValueError('La vigencia debe tener formato MM/AA.')
-        now=datetime.now()
-        if (2000+int(m.group(2)),int(m.group(1)))<(now.year,now.month): raise ValueError('La tarjeta está vencida.')
-        if self.db.execute("SELECT 1 FROM cards WHERE user_id=? AND kind='Crédito' AND last4=?",(uid,number[-4:])).fetchone(): raise ValueError('Esa tarjeta ya está vinculada.')
-        self.create_card(uid,'Crédito',number,holder,expiry); self.log(uid,'Tarjeta vinculada',f'Crédito terminación {number[-4:]}'); self.db.commit()
-    def unlink_card(self,uid,card_id):
-        cur=self.db.execute("DELETE FROM cards WHERE id=? AND user_id=? AND kind='Crédito'",(card_id,uid)); self.db.commit(); return cur.rowcount
- 
+
+    def lock_remaining(self, user):
+        if not user["locked_until"]:
+            return 0
+
+        return max(
+            0,
+            int(
+                (
+                    datetime.strptime(
+                        user["locked_until"],
+                        "%Y-%m-%d %H:%M:%S",
+                    )
+                    - datetime.now()
+                ).total_seconds()
+            ),
+        )
+
+    def failed_login(self, user):
+        attempts = user["failed_attempts"] + 1
+
+        if attempts >= MAX_ATTEMPTS:
+            until = (
+                datetime.now() + timedelta(minutes=LOCK_MINUTES)
+            ).strftime("%Y-%m-%d %H:%M:%S")
+
+            self.db.execute(
+                """
+                UPDATE users
+                SET failed_attempts=0, locked_until=?
+                WHERE id=?
+                """,
+                (until, user["id"]),
+            )
+
+            self.log(
+                user["id"],
+                "Acceso limitado",
+                f"{MAX_ATTEMPTS} intentos fallidos",
+            )
+
+            return 0, True
+
+        self.db.execute(
+            "UPDATE users SET failed_attempts=? WHERE id=?",
+            (attempts, user["id"]),
+        )
+
+        self.log(
+            user["id"],
+            "Acceso rechazado",
+            "NIP incorrecto",
+        )
+
+        return MAX_ATTEMPTS - attempts, False
+
+    def reset_attempts(self, uid):
+        self.db.execute(
+            """
+            UPDATE users
+            SET failed_attempts=0, locked_until=NULL
+            WHERE id=?
+            """,
+            (uid,),
+        )
+        self.db.commit()
+
+    def unread_alerts(self, uid):
+        return self.db.execute(
+            """
+            SELECT COUNT(*) FROM alerts
+            WHERE user_id=? AND seen=0
+            """,
+            (uid,),
+        ).fetchone()[0]
+
+    def cards(self, uid):
+        return self.db.execute(
+            "SELECT * FROM cards WHERE user_id=? ORDER BY id",
+            (uid,),
+        ).fetchall()
+
+    def create_card(
+        self,
+        uid,
+        kind,
+        number=None,
+        holder=None,
+        expiry=None,
+    ):
+        user = self.db.execute(
+            "SELECT name FROM users WHERE id=?",
+            (uid,),
+        ).fetchone()
+
+        if number is None:
+            partial = "5" + "".join(
+                secrets.choice("0123456789") for _ in range(14)
+            )
+            number = partial + luhn_digit(partial)
+
+        if expiry is None:
+            date = datetime.now()
+            expiry = (
+                f"{date.month:02d}/"
+                f"{(date.year + 4) % 100:02d}"
+            )
+
+        self.db.execute(
+            """
+            INSERT INTO cards(
+                user_id,kind,last4,holder,expiry,created
+            )
+            VALUES(?,?,?,?,?,?)
+            """,
+            (
+                uid,
+                kind,
+                number[-4:],
+                (holder or user["name"]).upper(),
+                expiry,
+                stamp(),
+            ),
+        )
+
+    def link_credit(self, uid, number, holder, expiry):
+        number = re.sub(r"[\s-]", "", str(number))
+        holder = str(holder).strip()
+        expiry = str(expiry).strip()
+        match = re.fullmatch(
+            r"(0[1-9]|1[0-2])/(\d{2})",
+            expiry,
+        )
+
+        if (
+            not re.fullmatch(r"\d{13,19}", number, re.ASCII)
+            or not luhn_ok(number)
+        ):
+            raise ValueError("Número de tarjeta no válido.")
+
+        if not holder:
+            raise ValueError("Escribe el nombre del titular.")
+
+        if not match:
+            raise ValueError(
+                "La vigencia debe tener formato MM/AA."
+            )
+
+        now = datetime.now()
+
+        if (
+            2000 + int(match.group(2)),
+            int(match.group(1)),
+        ) < (now.year, now.month):
+            raise ValueError("La tarjeta está vencida.")
+
+        if self.db.execute(
+            """
+            SELECT 1 FROM cards
+            WHERE user_id=? AND kind='Crédito' AND last4=?
+            """,
+            (uid, number[-4:]),
+        ).fetchone():
+            raise ValueError("Esa tarjeta ya está vinculada.")
+
+        self.create_card(
+            uid,
+            "Crédito",
+            number,
+            holder,
+            expiry,
+        )
+
+        self.log(
+            uid,
+            "Tarjeta vinculada",
+            f"Crédito terminación {number[-4:]}",
+        )
+
+        self.db.commit()
+
+    def unlink_card(self, uid, card_id):
+        cursor = self.db.execute(
+            """
+            DELETE FROM cards
+            WHERE id=? AND user_id=? AND kind='Crédito'
+            """,
+            (card_id, uid),
+        )
+        self.db.commit()
+        return cursor.rowcount
+
+
+def _ui_mix(first, second, amount):
+    a = tuple(
+        int(first[index:index + 2], 16)
+        for index in (1, 3, 5)
+    )
+    b = tuple(
+        int(second[index:index + 2], 16)
+        for index in (1, 3, 5)
+    )
+
+    return "#" + "".join(
+        f"{round(x + (y - x) * amount):02x}"
+        for x, y in zip(a, b)
+    )
+
+
+class AuroraWallpaper(tk.Canvas):
+    def __init__(self, parent, animated=True, **kwargs):
+        super().__init__(
+            parent,
+            bg=BG,
+            highlightthickness=0,
+            bd=0,
+            **kwargs,
+        )
+
+        self.animated = animated
+        self._time = 0.0
+        self._job = None
+        self._render_job = None
+        self._layout_handler = None
+        self._waves = []
+        self._stars = []
+        self._size = (0, 0)
+
+        self.bind("<Configure>", self._resize)
+        self.bind("<Map>", self._resize, add="+")
+        self.bind("<Destroy>", self._stop, add="+")
+
+        self._render_job = self.after_idle(self._first_frame)
+        self._job = self.after(50, self._tick)
+
+    def _stop(self, event=None):
+        if event is not None and event.widget is not self:
+            return
+
+        for attribute in ("_job", "_render_job"):
+            job = getattr(self, attribute, None)
+
+            if job is not None:
+                try:
+                    self.after_cancel(job)
+                except tk.TclError:
+                    pass
+
+                setattr(self, attribute, None)
+
+    def set_animated(self, enabled):
+        self.animated = bool(enabled)
+
+        if self.animated and self._job is None:
+            self._job = self.after(50, self._tick)
+
+    def set_layout(self, handler):
+        self._layout_handler = handler
+        self.bind("<Configure>", handler, add="+")
+
+        if self._render_job is not None:
+            self.after_cancel(self._render_job)
+
+        self._render_job = self.after_idle(self._first_frame)
+
+    def _first_frame(self):
+        self._render_job = None
+
+        if not self.winfo_exists():
+            return
+
+        self._resize()
+
+        if self._layout_handler is not None:
+            self._layout_handler()
+
+        self.tag_raise("interface")
+
+    def _resize(self, event=None):
+        if not self.winfo_exists():
+            return
+
+        width = max(1, self.winfo_width())
+        height = max(1, self.winfo_height())
+
+        if (width, height) == self._size:
+            return
+
+        self._size = width, height
+        self.delete("wallpaper")
+
+        for index in range(60):
+            self.create_rectangle(
+                0,
+                height * index / 60,
+                width,
+                height * (index + 1) / 60 + 1,
+                fill=_ui_mix(
+                    "#080E20",
+                    "#10303C",
+                    index / 59,
+                ),
+                outline="",
+                tags="wallpaper",
+            )
+
+        glows = (
+            (0.12, 0.30, 0.48, "#292645"),
+            (0.87, 0.67, 0.39, "#393B37"),
+        )
+
+        for x, y, radius, shade in glows:
+            for layer in range(12, 0, -1):
+                radius_pixels = (
+                    radius * max(width, height) * layer / 12
+                )
+
+                color = _ui_mix(
+                    "#111F30",
+                    shade,
+                    (13 - layer) / 24,
+                )
+
+                self.create_oval(
+                    width * x - radius_pixels,
+                    height * y - radius_pixels,
+                    width * x + radius_pixels,
+                    height * y + radius_pixels,
+                    fill=color,
+                    outline="",
+                    tags="wallpaper",
+                )
+
+        self._waves = []
+
+        for color in (
+            "#34465F",
+            "#3B5366",
+            "#2E6867",
+            "#6B6252",
+        ):
+            self._waves.append(
+                self.create_polygon(
+                    0, 0, 1, 0, 1, 1,
+                    fill=color,
+                    outline="",
+                    smooth=True,
+                    splinesteps=18,
+                    tags="wallpaper",
+                )
+            )
+
+        self._stars = []
+
+        for index in range(28):
+            x = ((index * 137 + 17) % 997) / 997
+            y = ((index * 79 + 33) % 499) / 499
+
+            item = self.create_oval(
+                0, 0, 2, 2,
+                fill="#7E8A92",
+                outline="",
+                tags="wallpaper",
+            )
+
+            self._stars.append(
+                (
+                    item,
+                    x,
+                    y,
+                    0.7 + (index % 3) * 0.2,
+                )
+            )
+
+        self.tag_lower("wallpaper")
+        self._paint()
+
+    def _paint(self):
+        width, height = self._size
+
+        if width < 2 or height < 2:
+            return
+
+        for index, item in enumerate(self._waves):
+            points = []
+
+            for step in range(-5, 38):
+                x = width * step / 32
+                y = height * (0.43 + index * 0.095)
+
+                y += (
+                    math.sin(
+                        step / 32 * 4.1
+                        + self._time * 0.25
+                        + index * 0.8
+                    )
+                    * height * 0.16
+                )
+
+                y += (
+                    math.cos(
+                        step / 32 * 6.0
+                        - self._time * 0.12
+                        + index
+                    )
+                    * height * 0.06
+                )
+
+                points.extend((x, y))
+
+            for step in range(37, -6, -1):
+                x = width * step / 32
+                y = height * (0.43 + index * 0.095)
+
+                y += (
+                    math.sin(
+                        step / 32 * 4.1
+                        + self._time * 0.25
+                        + index * 0.8
+                    )
+                    * height * 0.16
+                )
+
+                y += (
+                    math.cos(
+                        step / 32 * 6.0
+                        - self._time * 0.12
+                        + index
+                    )
+                    * height * 0.06
+                )
+
+                points.extend(
+                    (
+                        x,
+                        y + height * (0.10 + index * 0.012),
+                    )
+                )
+
+            self.coords(item, *points)
+
+        for item, x, y, speed in self._stars:
+            px = (x * width + self._time * speed * 1.8) % width
+            py = (y * height - self._time * speed * 2.1) % height
+
+            self.coords(
+                item,
+                px,
+                py,
+                px + 3,
+                py + 3,
+            )
+
+            intensity = (
+                0.3
+                + 0.3
+                * (1 + math.sin(self._time * 0.5 + x * 10))
+                / 2
+            )
+
+            self.itemconfigure(
+                item,
+                fill=_ui_mix(
+                    "#263949",
+                    "#DCCDAA",
+                    intensity,
+                ),
+            )
+
+    def _tick(self):
+        self._job = None
+
+        if not self.winfo_exists():
+            return
+
+        if self.animated:
+            if self.winfo_viewable():
+                if self._size != (
+                    self.winfo_width(),
+                    self.winfo_height(),
+                ):
+                    self._resize()
+
+                self._time += 0.05
+                self._paint()
+
+            self._job = self.after(50, self._tick)
+
+
 class Aurora:
-    def __init__(self,root):
-        self.root=root; self.store=Store(); self.user=None; self.sound=True; self.last_receipt=''; self.fx=17.2
-        root.title('BANCO AURORA | Simulador'); root.geometry('1250x790'); root.minsize(1000,660); root.configure(bg=BG)
-        self.style=ttk.Style(); self.style.theme_use('clam'); self.style.configure('Treeview',background=WHITE,foreground=INK,fieldbackground=WHITE,rowheight=28,font=('Segoe UI',10)); self.style.configure('Treeview.Heading',background=INK,foreground=GOLD_LIGHT,font=('Segoe UI',9,'bold')); self.style.map('Treeview',background=[('selected',GOLD_LIGHT)],foreground=[('selected',INK)])
+    def __init__(self, root):
+        self.root = root
+        self.store = Store()
+        self.user = None
+        self.sound = True
+        self.last_receipt = ""
+        self.fx = 17.2
+        self._wallpaper_paused = False
+
+        root.title("Banco Aurora · INTERFAZ ANIMADA V2")
+        root.geometry("1280x800")
+        root.minsize(1000, 660)
+        root.configure(bg=BG)
+
+        self.style = ttk.Style()
+        self.style.theme_use("clam")
+
+        self.style.configure(
+            "Treeview",
+            background=WHITE,
+            foreground=INK,
+            fieldbackground=WHITE,
+            rowheight=34,
+            borderwidth=0,
+            font=("Segoe UI", 10),
+        )
+
+        self.style.configure(
+            "Treeview.Heading",
+            background="#152435",
+            foreground=GOLD_LIGHT,
+            padding=(10, 12),
+            relief="flat",
+            font=("Segoe UI", 9, "bold"),
+        )
+
+        self.style.map(
+            "Treeview",
+            background=[("selected", "#394C5E")],
+            foreground=[("selected", "#FFF2D6")],
+        )
+
+        self.style.configure(
+            "TCombobox",
+            fieldbackground=FIELD,
+            background="#25364A",
+            foreground=INK,
+            arrowcolor=GOLD,
+            bordercolor=LINE,
+            lightcolor=LINE,
+            darkcolor=LINE,
+            padding=7,
+        )
+
+        self.style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", FIELD)],
+            foreground=[("readonly", INK)],
+            selectbackground=[("readonly", FIELD)],
+            selectforeground=[("readonly", INK)],
+        )
+
+        self.style.configure(
+            "TScrollbar",
+            background="#314358",
+            troughcolor=BG,
+            bordercolor=BG,
+            arrowcolor=GOLD,
+        )
+
+        root.option_add(
+            "*TCombobox*Listbox.background",
+            FIELD,
+        )
+        root.option_add(
+            "*TCombobox*Listbox.foreground",
+            INK,
+        )
+        root.option_add(
+            "*TCombobox*Listbox.selectBackground",
+            "#374A5D",
+        )
+
+        root.bind_all("<Map>", self._ui_map, add="+")
+
+        for event in (
+            "<MouseWheel>",
+            "<Button-4>",
+            "<Button-5>",
+        ):
+            root.bind_all(event, self._ui_wheel, add="+")
+
         self.login_screen()
+        root.after_idle(root.lift)
+
     def beep(self):
         if self.sound:
-            try:self.root.bell()
-            except Exception:pass
+            try:
+                self.root.bell()
+            except Exception:
+                pass
+
     def clear(self):
-        for w in self.root.winfo_children(): w.destroy()
-    def panel(self,parent,bg=WHITE,**kw): return tk.Frame(parent,bg=bg,**kw)
-    def label(self,parent,text,size=10,color=INK,bold=False,**kw): return tk.Label(parent,text=text,bg=kw.pop('bg',parent.cget('bg')),fg=color,font=('Segoe UI',size,'bold' if bold else 'normal'),**kw)
-    def btn(self,parent,text,cmd,primary=False,pady=9,**kw):
-        return tk.Button(parent,text=text,command=lambda:(self.beep(),cmd()),bg=GOLD if primary else INK,fg=INK if primary else WHITE,activebackground=GOLD_LIGHT,activeforeground=INK,relief='flat',bd=0,cursor='hand2',font=('Segoe UI',10,'bold' if primary else 'normal'),padx=13,pady=pady,**kw)
-    def entry(self,parent,show=None):
-        e=self._entry(parent,show); e.bind('<Key>',lambda ev:self.beep() if (ev.char or ev.keysym=='BackSpace') else None,add='+'); return e  # sonido al teclear
-    def _entry(self,parent,show=None): return tk.Entry(parent,bg='#FBFAF6',fg=INK,insertbackground=INK,relief='flat',highlightthickness=1,highlightbackground=LINE,highlightcolor=GOLD,show=show,font=('Segoe UI',11))
-    def field(self,parent,title,default='',show=None):
-        self.label(parent,title,9,MUTED,True).pack(anchor='w',pady=(10,4)); e=self.entry(parent,show); e.pack(fill='x')
-        if default!='':e.insert(0,str(default))
-        return e
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+    def panel(self, parent, bg=WHITE, **kwargs):
+        parent = getattr(parent, "_aurora_body", parent)
+
+        if bg in ("#F7F4EC", "#FBFAF6", "#F4F1E9"):
+            bg = SURFACE_ALT
+
+        return tk.Frame(
+            parent,
+            bg=bg,
+            **kwargs,
+        )
+
+    def label(
+        self,
+        parent,
+        text,
+        size=10,
+        color=INK,
+        bold=False,
+        **kwargs,
+    ):
+        background = kwargs.pop(
+            "bg",
+            parent.cget("bg"),
+        )
+
+        if background in (
+            "#F7F4EC",
+            "#FBFAF6",
+            "#F4F1E9",
+        ):
+            background = SURFACE_ALT
+
+        return tk.Label(
+            parent,
+            text=text,
+            bg=background,
+            fg=color,
+            font=(
+                "Segoe UI",
+                size,
+                "bold" if bold else "normal",
+            ),
+            **kwargs,
+        )
+
+    def btn(
+        self,
+        parent,
+        text,
+        cmd,
+        primary=False,
+        pady=9,
+        **kwargs,
+    ):
+        normal = GOLD if primary else "#203147"
+        foreground = "#162131" if primary else INK
+
+        options = dict(
+            text=text,
+            command=lambda: (self.beep(), cmd()),
+            bg=normal,
+            fg=foreground,
+            activebackground=GOLD_LIGHT,
+            activeforeground="#15202B",
+            relief="flat",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#3C4B5B",
+            cursor="hand2",
+            font=(
+                "Segoe UI",
+                10,
+                "bold" if primary else "normal",
+            ),
+            padx=15,
+            pady=pady,
+            takefocus=True,
+        )
+
+        options.update(kwargs)
+        button = tk.Button(parent, **options)
+
+        button.bind(
+            "<Enter>",
+            lambda event: button.configure(
+                bg=GOLD_LIGHT if primary else "#2B4058"
+            ),
+        )
+
+        button.bind(
+            "<Leave>",
+            lambda event: button.configure(bg=normal),
+        )
+
+        return button
+
+    def entry(self, parent, show=None):
+        entry = self._entry(parent, show)
+
+        entry.bind(
+            "<Key>",
+            lambda event: (
+                self.beep()
+                if event.char or event.keysym == "BackSpace"
+                else None
+            ),
+            add="+",
+        )
+
+        return entry
+
+    def _entry(self, parent, show=None):
+        return tk.Entry(
+            parent,
+            bg=FIELD,
+            fg=INK,
+            insertbackground=GOLD_LIGHT,
+            selectbackground="#3C526A",
+            selectforeground=INK,
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=LINE,
+            highlightcolor=GOLD,
+            show=show,
+            font=("Segoe UI", 11),
+        )
+
+    def field(
+        self,
+        parent,
+        title,
+        default="",
+        show=None,
+    ):
+        self.label(
+            parent,
+            title,
+            9,
+            MUTED,
+            True,
+        ).pack(
+            anchor="w",
+            pady=(12, 6),
+        )
+
+        entry = self.entry(parent, show)
+        entry.pack(fill="x", ipady=9)
+
+        if default != "":
+            entry.insert(0, str(default))
+
+        return entry
+
     def login_screen(self):
-        self.clear(); root=self.panel(self.root,BG);root.pack(fill='both',expand=True)
-        left=self.panel(root,INK,width=440);left.pack(side='left',fill='y');left.pack_propagate(False)
-        self.label(left,'A U R O R A',29,GOLD_LIGHT,True,bg=INK).pack(anchor='w',padx=42,pady=(70,8))
-        self.label(left,'BANCA DIGITAL',11,WHITE,True,bg=INK).pack(anchor='w',padx=45)
-        self.label(left,'Control claro.\nFinanzas bajo tu mirada.',23,WHITE,True,bg=INK,justify='left').pack(anchor='w',padx=42,pady=(100,18))
-        self.label(left,'SIMULADOR EDUCATIVO · SIN DINERO REAL',8,'#C6C8CD',True,bg=INK).pack(anchor='w',padx=42,side='bottom',pady=28)
-        right=self.panel(root,BG);right.pack(side='left',fill='both',expand=True)
-        card=self.panel(right,WHITE,padx=38,pady=34,highlightbackground=LINE,highlightthickness=1);card.place(relx=.5,rely=.5,anchor='center',width=470)
-        self.label(card,'Bienvenido',25,INK,True).pack(anchor='w')
-        self.label(card,'Ingresa con tu usuario, cuenta o CLABE y tu NIP.',10,MUTED).pack(anchor='w',pady=(4,18))
-        login=self.field(card,'USUARIO / NÚMERO DE CUENTA / CLABE')
-        pin=self.field(card,'NIP','',show='●')
+        self.clear()
+        canvas = self._new_wallpaper()
+
+        canvas.create_text(
+            54,
+            44,
+            text="A U R O R A",
+            fill=GOLD_LIGHT,
+            font=("Georgia", 24),
+            anchor="nw",
+            tags="interface",
+        )
+
+        intro = canvas.create_text(
+            65,
+            230,
+            text="INTERFAZ ANIMADA V2 · TU ESPACIO FINANCIERO",
+            fill=GOLD,
+            font=("Segoe UI", 9, "bold"),
+            anchor="nw",
+            tags="interface",
+        )
+
+        title = canvas.create_text(
+            60,
+            268,
+            text="AURORA",
+            fill="#FFF2D9",
+            font=("Georgia", 76),
+            anchor="nw",
+            tags="interface",
+        )
+
+        subtitle = canvas.create_text(
+            65,
+            380,
+            text="Tus finanzas,\nen otra dimensión.",
+            fill=INK,
+            font=("Georgia", 28),
+            anchor="nw",
+            justify="left",
+            tags="interface",
+        )
+
+        caption = canvas.create_text(
+            66,
+            490,
+            text="Control claro. Finanzas bajo tu mirada.",
+            fill=MUTED,
+            font=("Segoe UI", 11),
+            anchor="nw",
+            tags="interface",
+        )
+
+        footer = canvas.create_text(
+            54,
+            0,
+            text="SIMULADOR EDUCATIVO · SIN DINERO REAL",
+            fill=MUTED,
+            font=("Segoe UI", 8),
+            anchor="sw",
+            tags="interface",
+        )
+
+        card = self.panel(
+            canvas,
+            WHITE,
+            padx=34,
+            pady=30,
+            highlightbackground="#415066",
+            highlightthickness=1,
+        )
+
+        self.label(
+            card,
+            "BANCA PERSONAL",
+            9,
+            GOLD,
+            True,
+        ).pack(anchor="w", pady=(0, 12))
+
+        self.label(
+            card,
+            "Bienvenido a tu espacio.",
+            22,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            card,
+            "Ingresa con tu usuario, cuenta o CLABE y tu NIP.",
+            10,
+            MUTED,
+            wraplength=360,
+            justify="left",
+        ).pack(anchor="w", pady=(8, 18))
+
+        login = self.field(
+            card,
+            "USUARIO / NÚMERO DE CUENTA / CLABE",
+        )
+        pin = self.field(
+            card,
+            "NIP",
+            "",
+            show="●",
+        )
+
         def enter():
-            u=self.store.user_login(login.get().strip())
-            if not u:
-                messagebox.showerror('Acceso no válido','Verifica tus datos. La cuenta demo usa usuario demo y NIP 1234.');return
-            left=self.store.lock_remaining(u)
-            if left:
-                self.store.log(u['id'],'Acceso rechazado','Cuenta con límite de intentos');messagebox.showerror('Acceso limitado',f'Superaste el límite de intentos. Intenta de nuevo en {(left+59)//60} minuto(s).');return
-            if not self.store.verify(u,pin.get().strip()):
-                remaining,locked=self.store.failed_login(u)
-                if locked:messagebox.showerror('Acceso limitado',f'Superaste {MAX_ATTEMPTS} intentos fallidos. La cuenta queda limitada por {LOCK_MINUTES} minutos.')
-                else:messagebox.showerror('Acceso no válido',f'Verifica tus datos. Intentos restantes: {remaining}.')
+            user = self.store.user_login(
+                login.get().strip()
+            )
+
+            if not user:
+                messagebox.showerror(
+                    "Acceso no válido",
+                    "Verifica tus datos. La cuenta demo usa "
+                    "usuario demo y NIP 1234.",
+                )
                 return
-            if u['blocked']:messagebox.showerror('Cuenta bloqueada','Esta cuenta está bloqueada.');return
-            self.store.reset_attempts(u['id']);self.user=dict(self.store.db.execute('SELECT * FROM users WHERE id=?',(u['id'],)).fetchone());self.store.log(u['id'],'Inicio de sesión','Acceso local');self.store.run_scheduled(u['id']);self.dashboard()
-        self.btn(card,'ENTRAR A MI CUENTA',enter,True).pack(fill='x',pady=(22,8))
-        row=self.panel(card,WHITE);row.pack(fill='x')
-        self.btn(row,'Crear cuenta',self.register).pack(side='left',fill='x',expand=True,padx=(0,5))
-        self.btn(row,'Ayuda',lambda:messagebox.showinfo('Acceso demo','Usuario: demo\nNIP: 1234\nTambién puedes usar el número de cuenta o CLABE de Perfil.')).pack(side='left',fill='x',expand=True,padx=(5,0))
-        pin.bind('<Return>',lambda e:enter())
+
+            remaining_time = self.store.lock_remaining(user)
+
+            if remaining_time:
+                self.store.log(
+                    user["id"],
+                    "Acceso rechazado",
+                    "Cuenta con límite de intentos",
+                )
+
+                messagebox.showerror(
+                    "Acceso limitado",
+                    "Superaste el límite de intentos. "
+                    "Intenta de nuevo en "
+                    f"{(remaining_time + 59) // 60} minuto(s).",
+                )
+                return
+
+            if not self.store.verify(
+                user,
+                pin.get().strip(),
+            ):
+                remaining, locked = self.store.failed_login(user)
+
+                if locked:
+                    messagebox.showerror(
+                        "Acceso limitado",
+                        f"Superaste {MAX_ATTEMPTS} intentos fallidos. "
+                        "La cuenta queda limitada por "
+                        f"{LOCK_MINUTES} minutos.",
+                    )
+                else:
+                    messagebox.showerror(
+                        "Acceso no válido",
+                        "Verifica tus datos. "
+                        f"Intentos restantes: {remaining}.",
+                    )
+
+                return
+
+            if user["blocked"]:
+                messagebox.showerror(
+                    "Cuenta bloqueada",
+                    "Esta cuenta está bloqueada.",
+                )
+                return
+
+            self.store.reset_attempts(user["id"])
+
+            self.user = dict(
+                self.store.db.execute(
+                    "SELECT * FROM users WHERE id=?",
+                    (user["id"],),
+                ).fetchone()
+            )
+
+            self.store.log(
+                user["id"],
+                "Inicio de sesión",
+                "Acceso local",
+            )
+
+            self.store.run_scheduled(user["id"])
+            self.dashboard()
+
+        self.btn(
+            card,
+            "ENTRAR A MI CUENTA",
+            enter,
+            True,
+        ).pack(fill="x", pady=(24, 12))
+
+        row = self.panel(card, WHITE)
+        row.pack(fill="x")
+
+        self.btn(
+            row,
+            "Crear cuenta",
+            self.register,
+        ).pack(
+            side="left",
+            fill="x",
+            expand=True,
+            padx=(0, 5),
+        )
+
+        self.btn(
+            row,
+            "Ayuda",
+            lambda: messagebox.showinfo(
+                "Acceso demo",
+                "Usuario: demo\n"
+                "NIP: 1234\n"
+                "También puedes usar el número de cuenta "
+                "o CLABE de Perfil.",
+            ),
+        ).pack(
+            side="left",
+            fill="x",
+            expand=True,
+            padx=(5, 0),
+        )
+
+        pin.bind("<Return>", lambda event: enter())
+
+        card_id = canvas.create_window(
+            0,
+            0,
+            window=card,
+            width=455,
+            anchor="center",
+            tags="interface",
+        )
+
+        pause = self._pause_control(canvas)
+
+        def layout(event=None):
+            width = canvas.winfo_width()
+            height = canvas.winfo_height()
+
+            canvas.coords(
+                card_id,
+                width - 270,
+                height * 0.51,
+            )
+
+            canvas.coords(
+                footer,
+                54,
+                height - 30,
+            )
+
+            canvas.coords(
+                pause,
+                width - 24,
+                height - 22,
+            )
+
+            offset = max(0, (height - 760) // 3)
+
+            for item, y in (
+                (intro, 206),
+                (title, 244),
+                (subtitle, 359),
+                (caption, 474),
+            ):
+                canvas.coords(
+                    item,
+                    60 if item == title else 65,
+                    y + offset,
+                )
+
+        canvas.set_layout(layout)
+        login.focus_set()
+
     def register(self):
-        w=self.modal('Crear cuenta','440x570'); b=self.panel(w,WHITE,padx=24,pady=22);b.pack(fill='both',expand=True,padx=14,pady=14)
-        self.label(b,'Nueva cuenta Aurora',18,INK,True).pack(anchor='w')
-        name=self.field(b,'NOMBRE COMPLETO'); user=self.field(b,'NOMBRE DE USUARIO'); pin=self.field(b,'NIP DE 4 O MÁS DÍGITOS',show='●')
-        self.label(b,'Por seguridad no se aceptan NIP fáciles como 1234, 0000 o secuencias.',9,MUTED,wraplength=380,justify='left').pack(anchor='w',pady=(4,0))
-        initial=self.field(b,'SALDO INICIAL DE DEMOSTRACIÓN','0')
+        window = self.modal("Crear cuenta", "440x570")
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=24,
+            pady=22,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Nueva cuenta Aurora",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        name = self.field(body, "NOMBRE COMPLETO")
+        username = self.field(body, "NOMBRE DE USUARIO")
+
+        pin = self.field(
+            body,
+            "NIP DE 4 O MÁS DÍGITOS",
+            show="●",
+        )
+
+        self.label(
+            body,
+            "Por seguridad no se aceptan NIP fáciles "
+            "como 1234, 0000 o secuencias.",
+            9,
+            MUTED,
+            wraplength=380,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+        initial = self.field(
+            body,
+            "SALDO INICIAL DE DEMOSTRACIÓN",
+            "0",
+        )
+
         def create():
-            try:uid=self.store.create_user(name.get(),user.get(),pin.get(),num(initial.get() or 0));self.store.log(uid,'Cuenta creada','Registro local');messagebox.showinfo('Cuenta creada','Ya puedes entrar con tu usuario y NIP. Tu tarjeta de débito ya quedó ligada a la cuenta.');w.destroy()
-            except sqlite3.IntegrityError:messagebox.showerror('Usuario ocupado','Ese nombre de usuario ya existe.')
-            except Exception as e:messagebox.showerror('No se pudo crear',str(e))
-        self.btn(b,'CREAR CUENTA',create,True).pack(fill='x',pady=18)
-    def modal(self,title,size='600x520'):
-        w=tk.Toplevel(self.root);w.title(title);w.geometry(size);w.configure(bg=BG);w.transient(self.root);return w
+            try:
+                uid = self.store.create_user(
+                    name.get(),
+                    username.get(),
+                    pin.get(),
+                    num(initial.get() or 0),
+                )
+
+                self.store.log(
+                    uid,
+                    "Cuenta creada",
+                    "Registro local",
+                )
+
+                messagebox.showinfo(
+                    "Cuenta creada",
+                    "Ya puedes entrar con tu usuario y NIP. "
+                    "Tu tarjeta de débito ya quedó ligada "
+                    "a la cuenta.",
+                )
+
+                window.destroy()
+
+            except sqlite3.IntegrityError:
+                messagebox.showerror(
+                    "Usuario ocupado",
+                    "Ese nombre de usuario ya existe.",
+                )
+
+            except Exception as error:
+                messagebox.showerror(
+                    "No se pudo crear",
+                    str(error),
+                )
+
+        self.btn(
+            body,
+            "CREAR CUENTA",
+            create,
+            True,
+        ).pack(fill="x", pady=18)
+
+    def modal(self, title, size="600x520"):
+        window = tk.Toplevel(self.root)
+        window.title(title)
+
+        requested_width, requested_height = map(
+            int,
+            size.split("x"),
+        )
+
+        width = min(
+            requested_width,
+            max(360, window.winfo_screenwidth() - 80),
+        )
+
+        height = min(
+            requested_height,
+            max(320, window.winfo_screenheight() - 110),
+        )
+
+        window.geometry(f"{width}x{height}")
+        window.configure(bg=BG)
+        window.transient(self.root)
+
+        window.minsize(
+            min(width, 380),
+            min(height, 300),
+        )
+
+        background = AuroraWallpaper(
+            window,
+            animated=False,
+        )
+        background.place(
+            x=0,
+            y=0,
+            relwidth=1,
+            relheight=1,
+        )
+
+        wrap = tk.Frame(window, bg=BG)
+        wrap.pack(
+            fill="both",
+            expand=True,
+            padx=10,
+            pady=10,
+        )
+
+        scroll = tk.Canvas(
+            wrap,
+            bg=BG,
+            bd=0,
+            highlightthickness=0,
+        )
+
+        scrollbar = ttk.Scrollbar(
+            wrap,
+            orient="vertical",
+            command=scroll.yview,
+        )
+
+        scroll.configure(
+            yscrollcommand=scrollbar.set
+        )
+
+        scrollbar.pack(side="right", fill="y")
+        scroll.pack(
+            side="left",
+            fill="both",
+            expand=True,
+        )
+
+        body = tk.Frame(scroll, bg=BG)
+        body._aurora_scroll_canvas = scroll
+
+        item = scroll.create_window(
+            0,
+            0,
+            window=body,
+            anchor="nw",
+        )
+
+        def sync(event=None):
+            target = max(
+                scroll.winfo_height(),
+                body.winfo_reqheight(),
+            )
+
+            scroll.itemconfigure(
+                item,
+                height=target,
+            )
+
+            scroll.configure(
+                scrollregion=scroll.bbox("all")
+            )
+
+        body.bind("<Configure>", sync)
+        window.after_idle(sync)
+
+        def fit(event):
+            scroll.itemconfigure(
+                item,
+                width=max(1, event.width),
+                height=max(
+                    event.height,
+                    body.winfo_reqheight(),
+                ),
+            )
+
+        scroll.bind("<Configure>", fit)
+        window._aurora_body = body
+
+        return window
+
     def dashboard(self):
-        self.clear(); self.store.run_scheduled(self.user['id'])
-        shell=self.panel(self.root,BG);shell.pack(fill='both',expand=True)
-        side=self.panel(shell,INK,width=240);side.pack(side='left',fill='y');side.pack_propagate(False)
-        self.label(side,'AURORA',23,GOLD_LIGHT,True,bg=INK).pack(anchor='w',padx=24,pady=(25,0));self.label(side,'PANEL FINANCIERO',8,'#B8BBC2',True,bg=INK).pack(anchor='w',padx=26,pady=(0,20))
-        unread=self.store.unread_alerts(self.user['id'])
-        nav=[('Resumen',self.dashboard),('Transferencias',self.transfer),('Depósitos y retiros',self.deposit_withdraw),('Movimientos',self.history),('Consulta de saldo',self.balance_query),('Alertas de movimientos'+(f' ({unread})' if unread else ''),self.alerts),('Reportes de gastos',self.reports),('Ahorro y presupuesto',self.savings),('Cuenta de inversión',self.investments),('Pagar servicios',self.services),('Cuentas conjuntas',self.joint),('Tarjetas vinculadas',self.cards),('Cambio MXN / USD',self.converter),('Cashback',self.cashback),('Transferencias programadas',self.scheduled),('Tickets y exportación',self.receipts),('Perfil y seguridad',self.profile),('Atención al cliente',self.chat)]
-        self.btn(side,'Cerrar sesión',self.logout).pack(side='bottom',fill='x',padx=12,pady=16)
-        wrap=tk.Frame(side,bg=INK);wrap.pack(fill='both',expand=True);cv=tk.Canvas(wrap,bg=INK,highlightthickness=0,width=224);inner=tk.Frame(cv,bg=INK);cv.create_window((0,0),window=inner,anchor='nw',width=224)
-        inner.bind('<Configure>',lambda e:cv.configure(scrollregion=cv.bbox('all')));cv.pack(fill='both',expand=True)
-        def wheel(e):
-            try:cv.yview_scroll(-1 if (e.num==4 or (e.num!=5 and e.delta>0)) else 1,'units')
-            except tk.TclError:pass
-        cv.bind('<Enter>',lambda e:[cv.bind_all(s,wheel) for s in ('<MouseWheel>','<Button-4>','<Button-5>')]);cv.bind('<Leave>',lambda e:[cv.unbind_all(s) for s in ('<MouseWheel>','<Button-4>','<Button-5>')])
-        for name,cmd in nav:self.btn(inner,'  '+name,cmd,pady=6).pack(fill='x',padx=10,pady=2)
-        main=self.panel(shell,BG);main.pack(side='left',fill='both',expand=True)
-        header=self.panel(main,BG);header.pack(fill='x',padx=28,pady=(25,15))
-        self.label(header,f'Buenos días, {self.user["name"].split()[0]}',22,INK,True).pack(side='left')
-        self.label(header,'CUENTA '+self.user['account'],9,MUTED,True).pack(side='right',pady=10)
+        self.clear()
+        self.store.run_scheduled(self.user["id"])
+
+        canvas = self._new_wallpaper()
+
+        header = self.panel(
+            canvas,
+            WHITE,
+            padx=20,
+            pady=10,
+            highlightbackground=LINE,
+            highlightthickness=1,
+        )
+
+        self.label(
+            header,
+            "A U R O R A",
+            21,
+            GOLD_LIGHT,
+            True,
+        ).pack(side="left")
+
+        self.label(
+            header,
+            "INTERFAZ ANIMADA V2",
+            8,
+            MUTED,
+            True,
+        ).pack(side="left", padx=18)
+
+        self.btn(
+            header,
+            "Cerrar sesión",
+            self.logout,
+            pady=6,
+        ).pack(side="right")
+
+        self.label(
+            header,
+            self.user["name"],
+            10,
+            INK,
+        ).pack(side="right", padx=18)
+
+        header_id = canvas.create_window(
+            24,
+            20,
+            window=header,
+            anchor="nw",
+            height=66,
+            tags="interface",
+        )
+
+        unread = self.store.unread_alerts(
+            self.user["id"]
+        )
+
+        nav = [
+            ("Resumen", self.dashboard),
+            ("Transferencias", self.transfer),
+            ("Depósitos y retiros", self.deposit_withdraw),
+            ("Movimientos", self.history),
+            ("Consulta de saldo", self.balance_query),
+            (
+                "Alertas de movimientos"
+                + (f" ({unread})" if unread else ""),
+                self.alerts,
+            ),
+            ("Reportes de gastos", self.reports),
+            ("Ahorro y presupuesto", self.savings),
+            ("Cuenta de inversión", self.investments),
+            ("Pagar servicios", self.services),
+            ("Cuentas conjuntas", self.joint),
+            ("Tarjetas vinculadas", self.cards),
+            ("Cambio MXN / USD", self.converter),
+            ("Cashback", self.cashback),
+            ("Transferencias programadas", self.scheduled),
+            ("Tickets y exportación", self.receipts),
+            ("Perfil y seguridad", self.profile),
+            ("Atención al cliente", self.chat),
+        ]
+
+        navigation = self.panel(
+            canvas,
+            WHITE,
+            padx=12,
+            pady=5,
+            highlightbackground=LINE,
+            highlightthickness=1,
+        )
+
+        primary_navigation = (
+            ("Mi espacio", self.dashboard),
+            ("Transferir", self.transfer),
+            ("Actividad", self.history),
+            ("Ahorro", self.savings),
+            ("Perfil", self.profile),
+        )
+
+        for title, command in primary_navigation:
+            self.btn(
+                navigation,
+                title,
+                command,
+                pady=6,
+            ).pack(side="left", padx=4)
+
+        explorer = tk.Menubutton(
+            navigation,
+            text="Todas las funciones  ▾",
+            bg=GOLD,
+            fg="#172334",
+            activebackground=GOLD_LIGHT,
+            activeforeground="#172334",
+            relief="flat",
+            font=("Segoe UI", 10, "bold"),
+            padx=15,
+            pady=6,
+            cursor="hand2",
+            takefocus=True,
+        )
+
+        menu = tk.Menu(
+            explorer,
+            tearoff=False,
+            bg=WHITE,
+            fg=INK,
+            activebackground="#334A61",
+            activeforeground=GOLD_LIGHT,
+            font=("Segoe UI", 10),
+            borderwidth=0,
+        )
+
+        for name, command in nav:
+            menu.add_command(
+                label=name,
+                command=lambda callback=command: (
+                    self.beep(),
+                    callback(),
+                ),
+            )
+
+        explorer.configure(menu=menu)
+        explorer.pack(side="right", padx=4)
+
+        nav_id = canvas.create_window(
+            24,
+            98,
+            window=navigation,
+            anchor="nw",
+            height=49,
+            tags="interface",
+        )
+
+        canvas.create_text(
+            32,
+            179,
+            text=(
+                "Buenos días, "
+                f"{self.user['name'].split()[0]}"
+            ),
+            fill=INK,
+            font=("Georgia", 27),
+            anchor="nw",
+            tags="interface",
+        )
+
+        account = canvas.create_text(
+            0,
+            188,
+            text="CUENTA " + self.user["account"],
+            fill=MUTED,
+            font=("Segoe UI", 9),
+            anchor="ne",
+            tags="interface",
+        )
+
+        count = self.store.db.execute(
+            "SELECT COUNT(*) FROM tx WHERE user_id=?",
+            (self.user["id"],),
+        ).fetchone()[0]
+
+        saving = self.store.db.execute(
+            "SELECT * FROM savings WHERE user_id=?",
+            (self.user["id"],),
+        ).fetchone()
+
+        percentage = min(
+            100,
+            (
+                saving["saved"] / saving["target"] * 100
+                if saving["target"]
+                else 0
+            ),
+        )
+
+        blocks = [
+            self.metric(
+                canvas,
+                "SALDO DISPONIBLE",
+                *self.balance_text(),
+                GOLD,
+            ),
+            self.metric(
+                canvas,
+                "MOVIMIENTOS",
+                str(count),
+                "Operaciones registradas",
+                GREEN,
+            ),
+            self.metric(
+                canvas,
+                "META DE AHORRO",
+                f"{percentage:.0f}%",
+                saving["name"],
+                GOLD_LIGHT,
+            ),
+        ]
+
+        metrics = [
+            canvas.create_window(
+                0,
+                0,
+                window=block,
+                anchor="nw",
+                height=116,
+                tags="interface",
+            )
+            for block in blocks
+        ]
+
+        activity = self.panel(
+            canvas,
+            WHITE,
+            padx=20,
+            pady=18,
+            highlightbackground=LINE,
+            highlightthickness=1,
+        )
+
+        self.label(
+            activity,
+            "Actividad reciente",
+            15,
+            INK,
+            True,
+        ).pack(anchor="w", pady=(0, 13))
+
+        tree = self.tree(
+            activity,
+            ("fecha", "operación", "detalle", "importe"),
+            (145, 145, 300, 120),
+        )
+
+        recent = self.store.db.execute(
+            """
+            SELECT * FROM tx
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT 8
+            """,
+            (self.user["id"],),
+        ).fetchall()
+
+        for row in recent:
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    row["created"],
+                    row["kind"],
+                    row["detail"],
+                    pesos(row["amount"]),
+                ),
+            )
+
+        activity_id = canvas.create_window(
+            0,
+            0,
+            window=activity,
+            anchor="nw",
+            tags="interface",
+        )
+
+        tools = self.panel(
+            canvas,
+            WHITE,
+            padx=18,
+            pady=18,
+            highlightbackground=LINE,
+            highlightthickness=1,
+        )
+
+        tools_body = self._ui_scrollbody(tools)
+
+        self.label(
+            tools_body,
+            "Acceso rápido",
+            15,
+            INK,
+            True,
+        ).pack(anchor="w", pady=(0, 12))
+
+        quick_actions = [
+            ("Transferir", self.transfer),
+            (
+                "Depositar",
+                lambda: self.deposit_withdraw("Depósito"),
+            ),
+            (
+                "Retirar",
+                lambda: self.deposit_withdraw("Retiro"),
+            ),
+            ("Pagar servicio", self.services),
+            ("Exportar CSV", self.export_csv),
+        ]
+
+        for text, command in quick_actions:
+            self.btn(
+                tools_body,
+                text,
+                command,
+                text == "Transferir",
+                pady=7,
+            ).pack(fill="x", pady=4)
+
+        tools_id = canvas.create_window(
+            0,
+            0,
+            window=tools,
+            anchor="nw",
+            tags="interface",
+        )
+
+        notice = None
+
         if unread:
-            bar=self.panel(main,GOLD_LIGHT,padx=14,pady=6);bar.pack(fill='x',padx=28,pady=(0,10));self.label(bar,f'ALERTA: tienes {unread} movimiento(s) nuevo(s) en tu cuenta.',10,INK,True,bg=GOLD_LIGHT).pack(side='left');self.btn(bar,'Ver alertas',self.alerts,pady=4).pack(side='right')
-        cards=self.panel(main,BG);cards.pack(fill='x',padx=22)
-        self.metric(cards,'SALDO DISPONIBLE',*self.balance_text(),GOLD).pack(side='left',fill='both',expand=True,padx=6)
-        count=self.store.db.execute('SELECT COUNT(*) FROM tx WHERE user_id=?',(self.user['id'],)).fetchone()[0]
-        self.metric(cards,'MOVIMIENTOS',str(count),'Operaciones registradas',GREEN).pack(side='left',fill='both',expand=True,padx=6)
-        s=self.store.db.execute('SELECT * FROM savings WHERE user_id=?',(self.user['id'],)).fetchone(); pct=min(100,(s['saved']/s['target']*100 if s['target'] else 0))
-        self.metric(cards,'META DE AHORRO',f'{pct:.0f}%',s['name'],INK).pack(side='left',fill='both',expand=True,padx=6)
-        lower=self.panel(main,BG);lower.pack(fill='both',expand=True,padx=28,pady=20)
-        activity=self.panel(lower,WHITE,padx=18,pady=16,highlightbackground=LINE,highlightthickness=1);activity.pack(side='left',fill='both',expand=True,padx=(0,8))
-        self.label(activity,'Actividad reciente',14,INK,True).pack(anchor='w',pady=(0,12))
-        tree=self.tree(activity,('fecha','operación','detalle','importe'),(145,145,300,120))
-        for r in self.store.db.execute('SELECT * FROM tx WHERE user_id=? ORDER BY id DESC LIMIT 8',(self.user['id'],)).fetchall():tree.insert('','end',values=(r['created'],r['kind'],r['detail'],pesos(r['amount'])))
-        tools=self.panel(lower,WHITE,padx=18,pady=16,width=250,highlightbackground=LINE,highlightthickness=1);tools.pack(side='left',fill='y');tools.pack_propagate(False)
-        self.label(tools,'Acceso rápido',14,INK,True).pack(anchor='w',pady=(0,10))
-        for text,cmd in [('Transferir',self.transfer),('Depositar',lambda:self.deposit_withdraw('Depósito')),('Retirar',lambda:self.deposit_withdraw('Retiro')),('Pagar servicio',self.services),('Exportar CSV',self.export_csv)]:self.btn(tools,text,cmd,text=='Transferir').pack(fill='x',pady=4)
-        self.label(main,'SIMULACIÓN LOCAL · NO CONECTADA A NINGÚN BANCO',8,MUTED,True,bg=BG).pack(anchor='e',padx=28,pady=(0,10))
+            notice_frame = self.panel(
+                canvas,
+                "#2E3D4C",
+                padx=12,
+                pady=5,
+            )
+
+            self.label(
+                notice_frame,
+                f"ALERTA: tienes {unread} movimiento(s) "
+                "nuevo(s) en tu cuenta.",
+                9,
+                GOLD_LIGHT,
+                True,
+            ).pack(side="left")
+
+            self.btn(
+                notice_frame,
+                "Ver alertas",
+                self.alerts,
+                pady=3,
+            ).pack(side="right")
+
+            notice = canvas.create_window(
+                28,
+                220,
+                window=notice_frame,
+                anchor="nw",
+                height=37,
+                tags="interface",
+            )
+
+        footer = canvas.create_text(
+            30,
+            0,
+            text="SIMULACIÓN LOCAL · NO CONECTADA A NINGÚN BANCO",
+            fill=MUTED,
+            font=("Segoe UI", 8),
+            anchor="sw",
+            tags="interface",
+        )
+
+        pause = self._pause_control(canvas)
+
+        def layout(event=None):
+            width = canvas.winfo_width()
+            height = canvas.winfo_height()
+            usable = width - 56
+
+            canvas.itemconfigure(
+                header_id,
+                width=width - 48,
+            )
+
+            canvas.itemconfigure(
+                nav_id,
+                width=width - 48,
+            )
+
+            canvas.coords(
+                account,
+                width - 32,
+                188,
+            )
+
+            top = 272 if unread else 231
+            first = int((usable - 32) * 0.47)
+            small = (usable - first - 32) // 2
+
+            positions = (
+                28,
+                44 + first,
+                60 + first + small,
+            )
+
+            for item, x, item_width in zip(
+                metrics,
+                positions,
+                (first, small, small),
+            ):
+                canvas.coords(item, x, top)
+                canvas.itemconfigure(
+                    item,
+                    width=item_width,
+                )
+
+            low = top + 135
+            left_width = usable - 264 - 18
+            low_height = max(
+                185,
+                height - low - 66,
+            )
+
+            canvas.coords(
+                activity_id,
+                28,
+                low,
+            )
+
+            canvas.itemconfigure(
+                activity_id,
+                width=left_width,
+                height=low_height,
+            )
+
+            canvas.coords(
+                tools_id,
+                width - 292,
+                low,
+            )
+
+            canvas.itemconfigure(
+                tools_id,
+                width=264,
+                height=low_height,
+            )
+
+            canvas.coords(
+                footer,
+                30,
+                height - 21,
+            )
+
+            canvas.coords(
+                pause,
+                width - 24,
+                height - 18,
+            )
+
+            if notice:
+                canvas.itemconfigure(
+                    notice,
+                    width=usable,
+                )
+
+        canvas.set_layout(layout)
+
     def balance_text(self):
-        bal=self.user['balance']
-        if self.user['currency']=='USD':return f'${bal/self.fx:,.2f} USD',f'≈ {pesos(bal)} · {self.fx:g} MXN por USD'
-        return pesos(bal),'Saldo local de demostración'
-    def reload_user(self):self.user=dict(self.store.db.execute('SELECT * FROM users WHERE id=?',(self.user['id'],)).fetchone())
-    def metric(self,parent,title,value,subtitle,accent):
-        b=self.panel(parent,WHITE,padx=18,pady=16,highlightbackground=LINE,highlightthickness=1);self.label(b,title,8,MUTED,True).pack(anchor='w');self.label(b,value,22,accent,True).pack(anchor='w',pady=5);self.label(b,subtitle,9,MUTED).pack(anchor='w');return b
-    def tree(self,parent,cols,widths):
-        wrap=self.panel(parent,WHITE);wrap.pack(fill='both',expand=True);t=ttk.Treeview(wrap,columns=cols,show='headings')
-        for c,w in zip(cols,widths):t.heading(c,text=c.upper());t.column(c,width=w,minwidth=65,anchor='w')
-        sy=ttk.Scrollbar(wrap,orient='vertical',command=t.yview);t.configure(yscrollcommand=sy.set);t.pack(side='left',fill='both',expand=True);sy.pack(side='right',fill='y');return t
-    def done(self,win,msg):messagebox.showinfo('Banco Aurora',msg);win.destroy();self.refresh()
-    def refresh(self):self.reload_user();self.dashboard()
-    def deposit_withdraw(self,preset=None):
-        w=self.modal('Depósitos y retiros','480x430');b=self.panel(w,WHITE,padx=24,pady=20);b.pack(fill='both',expand=True,padx=14,pady=14)
-        kind=tk.StringVar(value=preset or 'Depósito');self.label(b,'Tipo de operación',9,MUTED,True).pack(anchor='w');ttk.Combobox(b,textvariable=kind,values=('Depósito','Retiro'),state='readonly').pack(fill='x',pady=5)
-        amount=self.field(b,'IMPORTE MXN');detail=self.field(b,'CONCEPTO','Operación de demostración')
+        balance = self.user["balance"]
+
+        if self.user["currency"] == "USD":
+            return (
+                f"${balance / self.fx:,.2f} USD",
+                f"≈ {pesos(balance)} · {self.fx:g} MXN por USD",
+            )
+
+        return pesos(balance), "Saldo local de demostración"
+
+    def reload_user(self):
+        self.user = dict(
+            self.store.db.execute(
+                "SELECT * FROM users WHERE id=?",
+                (self.user["id"],),
+            ).fetchone()
+        )
+
+    def metric(
+        self,
+        parent,
+        title,
+        value,
+        subtitle,
+        accent,
+    ):
+        box = self.panel(
+            parent,
+            WHITE,
+            padx=20,
+            pady=15,
+            highlightbackground=LINE,
+            highlightthickness=1,
+        )
+
+        self.label(
+            box,
+            title,
+            8,
+            MUTED,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            box,
+            value,
+            23,
+            accent,
+            True,
+        ).pack(anchor="w", pady=(5, 3))
+
+        self.label(
+            box,
+            subtitle,
+            9,
+            MUTED,
+        ).pack(anchor="w")
+
+        return box
+
+    def tree(self, parent, columns, widths):
+        wrap = self.panel(parent, WHITE)
+        wrap.pack(fill="both", expand=True)
+        wrap.rowconfigure(0, weight=1)
+        wrap.columnconfigure(0, weight=1)
+
+        tree = ttk.Treeview(
+            wrap,
+            columns=columns,
+            show="headings",
+        )
+
+        for column, width in zip(columns, widths):
+            tree.heading(
+                column,
+                text=column.upper(),
+            )
+
+            tree.column(
+                column,
+                width=width,
+                minwidth=65,
+                anchor="w",
+            )
+
+        vertical = ttk.Scrollbar(
+            wrap,
+            orient="vertical",
+            command=tree.yview,
+        )
+
+        horizontal = ttk.Scrollbar(
+            wrap,
+            orient="horizontal",
+            command=tree.xview,
+        )
+
+        tree.configure(
+            yscrollcommand=vertical.set,
+            xscrollcommand=horizontal.set,
+        )
+
+        tree.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+
+        vertical.grid(
+            row=0,
+            column=1,
+            sticky="ns",
+        )
+
+        horizontal.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+        )
+
+        return tree
+
+    def done(self, window, message):
+        messagebox.showinfo(
+            "Banco Aurora",
+            message,
+        )
+        window.destroy()
+        self.refresh()
+
+    def refresh(self):
+        self.reload_user()
+        self.dashboard()
+
+    def deposit_withdraw(self, preset=None):
+        window = self.modal(
+            "Depósitos y retiros",
+            "480x430",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=24,
+            pady=20,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        kind = tk.StringVar(
+            value=preset or "Depósito"
+        )
+
+        self.label(
+            body,
+            "Tipo de operación",
+            9,
+            MUTED,
+            True,
+        ).pack(anchor="w")
+
+        ttk.Combobox(
+            body,
+            textvariable=kind,
+            values=("Depósito", "Retiro"),
+            state="readonly",
+        ).pack(fill="x", pady=5)
+
+        amount = self.field(
+            body,
+            "IMPORTE MXN",
+        )
+
+        detail = self.field(
+            body,
+            "CONCEPTO",
+            "Operación de demostración",
+        )
+
         def go():
             try:
-                n=num(amount.get());self.store.add_tx(self.user['id'],kind.get(),n,detail.get());self.store.log(self.user['id'],kind.get(),str(n));self.last_receipt=f'{kind.get()}\nImporte: {pesos(n)}\nConcepto: {detail.get()}\nFecha: {stamp()}';self.done(w,f'{kind.get()} registrado. Saldo actual: {pesos(self.store.db.execute("SELECT balance FROM users WHERE id=?",(self.user["id"],)).fetchone()[0])}')
-            except Exception as e:messagebox.showerror('Operación no realizada',str(e))
-        self.btn(b,'CONFIRMAR OPERACIÓN',go,True).pack(fill='x',pady=20)
+                value = num(amount.get())
+
+                self.store.add_tx(
+                    self.user["id"],
+                    kind.get(),
+                    value,
+                    detail.get(),
+                )
+
+                self.store.log(
+                    self.user["id"],
+                    kind.get(),
+                    str(value),
+                )
+
+                self.last_receipt = (
+                    f"{kind.get()}\n"
+                    f"Importe: {pesos(value)}\n"
+                    f"Concepto: {detail.get()}\n"
+                    f"Fecha: {stamp()}"
+                )
+
+                balance = self.store.db.execute(
+                    "SELECT balance FROM users WHERE id=?",
+                    (self.user["id"],),
+                ).fetchone()[0]
+
+                self.done(
+                    window,
+                    f"{kind.get()} registrado. "
+                    f"Saldo actual: {pesos(balance)}",
+                )
+
+            except Exception as error:
+                messagebox.showerror(
+                    "Operación no realizada",
+                    str(error),
+                )
+
+        self.btn(
+            body,
+            "CONFIRMAR OPERACIÓN",
+            go,
+            True,
+        ).pack(fill="x", pady=20)
+
     def transfer(self):
-        w=self.modal('Transferencias','520x520');b=self.panel(w,WHITE,padx=24,pady=20);b.pack(fill='both',expand=True,padx=14,pady=14)
-        self.label(b,'Enviar dinero',18,INK,True).pack(anchor='w');dest=self.field(b,'CUENTA O CLABE DEL DESTINATARIO');amount=self.field(b,'IMPORTE MXN');note=self.field(b,'CONCEPTO','Transferencia personal')
-        self.label(b,f'Cuentas de Banco Aurora: sin comisión. Cuentas de otros bancos: comisión de {pesos(EXTERNAL_FEE)}.',9,MUTED,wraplength=430,justify='left').pack(anchor='w',pady=10)
+        window = self.modal(
+            "Transferencias",
+            "520x520",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=24,
+            pady=20,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Enviar dinero",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        destination = self.field(
+            body,
+            "CUENTA O CLABE DEL DESTINATARIO",
+        )
+
+        amount = self.field(
+            body,
+            "IMPORTE MXN",
+        )
+
+        note = self.field(
+            body,
+            "CONCEPTO",
+            "Transferencia personal",
+        )
+
+        self.label(
+            body,
+            "Cuentas de Banco Aurora: sin comisión. "
+            "Cuentas de otros bancos: comisión de "
+            f"{pesos(EXTERNAL_FEE)}.",
+            9,
+            MUTED,
+            wraplength=430,
+            justify="left",
+        ).pack(anchor="w", pady=10)
+
         def go():
             try:
-                n=num(amount.get());d=dest.get().strip()
-                if not d:raise ValueError('Escribe el destinatario.')
-                if n<=0:raise ValueError('El importe debe ser mayor que cero.')
-                target=self.store.find_account(d);fee=0 if target else EXTERNAL_FEE
-                if not messagebox.askyesno('Confirmar transferencia',f"Destino: {d}\nTipo: {'Cuenta Aurora' if target else 'Otro banco'}\nImporte: {pesos(n)}\nComisión: {pesos(fee)}\nTotal: {pesos(n+fee)}\n\n¿Confirmar?",parent=w):return
-                fee,internal=self.store.transfer(self.user['id'],d,n,note.get())
-                self.last_receipt=f'TRANSFERENCIA DE DEMOSTRACIÓN\nDestino: {d}\nImporte: {pesos(n)}\nComisión: {pesos(fee)}\nConcepto: {note.get()}\nFecha: {stamp()}';self.done(w,f'Transferencia simulada registrada.\nImporte: {pesos(n)}\nComisión: {pesos(fee)}')
-            except Exception as e:messagebox.showerror('No se pudo transferir',str(e),parent=w)
-        self.btn(b,'REVISAR Y TRANSFERIR',go,True).pack(fill='x',pady=18)
+                value = num(amount.get())
+                recipient = destination.get().strip()
+
+                if not recipient:
+                    raise ValueError("Escribe el destinatario.")
+
+                if value <= 0:
+                    raise ValueError(
+                        "El importe debe ser mayor que cero."
+                    )
+
+                target = self.store.find_account(recipient)
+                fee = 0 if target else EXTERNAL_FEE
+                transfer_type = (
+                    "Cuenta Aurora" if target else "Otro banco"
+                )
+
+                confirmed = messagebox.askyesno(
+                    "Confirmar transferencia",
+                    f"Destino: {recipient}\n"
+                    f"Tipo: {transfer_type}\n"
+                    f"Importe: {pesos(value)}\n"
+                    f"Comisión: {pesos(fee)}\n"
+                    f"Total: {pesos(value + fee)}\n\n"
+                    "¿Confirmar?",
+                    parent=window,
+                )
+
+                if not confirmed:
+                    return
+
+                fee, internal = self.store.transfer(
+                    self.user["id"],
+                    recipient,
+                    value,
+                    note.get(),
+                )
+
+                self.last_receipt = (
+                    "TRANSFERENCIA DE DEMOSTRACIÓN\n"
+                    f"Destino: {recipient}\n"
+                    f"Importe: {pesos(value)}\n"
+                    f"Comisión: {pesos(fee)}\n"
+                    f"Concepto: {note.get()}\n"
+                    f"Fecha: {stamp()}"
+                )
+
+                self.done(
+                    window,
+                    "Transferencia simulada registrada.\n"
+                    f"Importe: {pesos(value)}\n"
+                    f"Comisión: {pesos(fee)}",
+                )
+
+            except Exception as error:
+                messagebox.showerror(
+                    "No se pudo transferir",
+                    str(error),
+                    parent=window,
+                )
+
+        self.btn(
+            body,
+            "REVISAR Y TRANSFERIR",
+            go,
+            True,
+        ).pack(fill="x", pady=18)
+
     def history(self):
-        w=self.modal('Historial de movimientos','900x560');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Movimientos de la cuenta',17,INK,True).pack(anchor='w',pady=(0,10));t=self.tree(b,('fecha','tipo','detalle','importe','comisión'),(155,155,370,110,100))
-        for r in self.store.db.execute('SELECT * FROM tx WHERE user_id=? ORDER BY id DESC',(self.user['id'],)).fetchall():t.insert('','end',values=(r['created'],r['kind'],r['detail'],pesos(r['amount']),pesos(r['fee'])))
-        self.btn(b,'Exportar CSV',self.export_csv).pack(anchor='e',pady=10)
+        window = self.modal(
+            "Historial de movimientos",
+            "900x560",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=16,
+            pady=16,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=12,
+            pady=12,
+        )
+
+        self.label(
+            body,
+            "Movimientos de la cuenta",
+            17,
+            INK,
+            True,
+        ).pack(anchor="w", pady=(0, 10))
+
+        tree = self.tree(
+            body,
+            (
+                "fecha",
+                "tipo",
+                "detalle",
+                "importe",
+                "comisión",
+            ),
+            (155, 155, 370, 110, 100),
+        )
+
+        rows = self.store.db.execute(
+            """
+            SELECT * FROM tx
+            WHERE user_id=?
+            ORDER BY id DESC
+            """,
+            (self.user["id"],),
+        ).fetchall()
+
+        for row in rows:
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    row["created"],
+                    row["kind"],
+                    row["detail"],
+                    pesos(row["amount"]),
+                    pesos(row["fee"]),
+                ),
+            )
+
+        self.btn(
+            body,
+            "Exportar CSV",
+            self.export_csv,
+        ).pack(anchor="e", pady=10)
+
     def reports(self):
-        w=self.modal('Reportes de gastos','700x520');b=self.panel(w,WHITE,padx=20,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Resumen de gastos',18,INK,True).pack(anchor='w')
-        for days,title in ((7,'Últimos 7 días'),(30,'Últimos 30 días')):
-            since=(datetime.now()-timedelta(days=days)).strftime('%Y-%m-%d');rows=self.store.db.execute("SELECT kind,SUM(amount+fee) total FROM tx WHERE user_id=? AND created>=? AND kind IN ('Retiro','Transferencia enviada','Pago de servicio','Inversión','Ahorro apartado','Comisión por consulta') GROUP BY kind",(self.user['id'],since)).fetchall();total=sum(r['total'] for r in rows);p=self.panel(b,'#F7F4EC',padx=15,pady=12);p.pack(fill='x',pady=8);self.label(p,title,13,GOLD,True).pack(anchor='w');self.label(p,'Gastos registrados: '+pesos(total),15,INK,True).pack(anchor='w',pady=4)
-            for r in rows:self.label(p,f"• {r['kind']}: {pesos(r['total'])}",10,MUTED).pack(anchor='w')
-        self.btn(b,'Exportar CSV',self.export_csv).pack(anchor='e',pady=8)
+        window = self.modal(
+            "Reportes de gastos",
+            "700x520",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=20,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Resumen de gastos",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        for days, title in (
+            (7, "Últimos 7 días"),
+            (30, "Últimos 30 días"),
+        ):
+            since = (
+                datetime.now() - timedelta(days=days)
+            ).strftime("%Y-%m-%d")
+
+            rows = self.store.db.execute(
+                """
+                SELECT kind, SUM(amount+fee) total
+                FROM tx
+                WHERE user_id=?
+                AND created>=?
+                AND kind IN (
+                    'Retiro',
+                    'Transferencia enviada',
+                    'Pago de servicio',
+                    'Inversión',
+                    'Ahorro apartado',
+                    'Comisión por consulta'
+                )
+                GROUP BY kind
+                """,
+                (self.user["id"], since),
+            ).fetchall()
+
+            total = sum(row["total"] for row in rows)
+
+            section = self.panel(
+                body,
+                "#F7F4EC",
+                padx=15,
+                pady=12,
+            )
+            section.pack(fill="x", pady=8)
+
+            self.label(
+                section,
+                title,
+                13,
+                GOLD,
+                True,
+            ).pack(anchor="w")
+
+            self.label(
+                section,
+                "Gastos registrados: " + pesos(total),
+                15,
+                INK,
+                True,
+            ).pack(anchor="w", pady=4)
+
+            for row in rows:
+                self.label(
+                    section,
+                    f"• {row['kind']}: {pesos(row['total'])}",
+                    10,
+                    MUTED,
+                ).pack(anchor="w")
+
+        self.btn(
+            body,
+            "Exportar CSV",
+            self.export_csv,
+        ).pack(anchor="e", pady=8)
+
     def savings(self):
-        w=self.modal('Ahorro y presupuesto','500x560');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);s=self.store.db.execute('SELECT * FROM savings WHERE user_id=?',(self.user['id'],)).fetchone();self.label(b,'Tu plan financiero',18,INK,True).pack(anchor='w');name=self.field(b,'NOMBRE DE LA META',s['name']);target=self.field(b,'OBJETIVO MXN',s['target']);add=self.field(b,'APORTACIÓN A AHORRO MXN','0');budget=self.field(b,'PRESUPUESTO MENSUAL MXN',s['monthly_budget']);self.label(b,f"Ahorrado hasta ahora: {pesos(s['saved'])}",10,MUTED).pack(anchor='w',pady=8)
+        window = self.modal(
+            "Ahorro y presupuesto",
+            "500x560",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        saving = self.store.db.execute(
+            "SELECT * FROM savings WHERE user_id=?",
+            (self.user["id"],),
+        ).fetchone()
+
+        self.label(
+            body,
+            "Tu plan financiero",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        name = self.field(
+            body,
+            "NOMBRE DE LA META",
+            saving["name"],
+        )
+
+        target = self.field(
+            body,
+            "OBJETIVO MXN",
+            saving["target"],
+        )
+
+        addition = self.field(
+            body,
+            "APORTACIÓN A AHORRO MXN",
+            "0",
+        )
+
+        budget = self.field(
+            body,
+            "PRESUPUESTO MENSUAL MXN",
+            saving["monthly_budget"],
+        )
+
+        self.label(
+            body,
+            "Ahorrado hasta ahora: "
+            f"{pesos(saving['saved'])}",
+            10,
+            MUTED,
+        ).pack(anchor="w", pady=8)
+
         def save():
             try:
-                t=num(target.get());a=num(add.get());m=num(budget.get())
-                if t<=0 or a<0 or m<=0:raise ValueError('Objetivo y presupuesto deben ser positivos; la aportación no puede ser negativa.')
-                if a:self.store.add_tx(self.user['id'],'Ahorro apartado',a,'Aportación a meta')
-                self.store.db.execute('UPDATE savings SET name=?,target=?,saved=saved+?,monthly_budget=? WHERE user_id=?',(name.get() or 'Mi meta',t,a,m,self.user['id']));self.store.db.commit();self.done(w,'Meta y presupuesto guardados.')
-            except Exception as e:messagebox.showerror('No se pudo guardar',str(e))
-        self.btn(b,'GUARDAR PLAN',save,True).pack(fill='x',pady=18)
+                target_value = num(target.get())
+                addition_value = num(addition.get())
+                monthly_value = num(budget.get())
+
+                if (
+                    target_value <= 0
+                    or addition_value < 0
+                    or monthly_value <= 0
+                ):
+                    raise ValueError(
+                        "Objetivo y presupuesto deben ser positivos; "
+                        "la aportación no puede ser negativa."
+                    )
+
+                if addition_value:
+                    self.store.add_tx(
+                        self.user["id"],
+                        "Ahorro apartado",
+                        addition_value,
+                        "Aportación a meta",
+                    )
+
+                self.store.db.execute(
+                    """
+                    UPDATE savings
+                    SET name=?,
+                        target=?,
+                        saved=saved+?,
+                        monthly_budget=?
+                    WHERE user_id=?
+                    """,
+                    (
+                        name.get() or "Mi meta",
+                        target_value,
+                        addition_value,
+                        monthly_value,
+                        self.user["id"],
+                    ),
+                )
+
+                self.store.db.commit()
+                self.done(
+                    window,
+                    "Meta y presupuesto guardados.",
+                )
+
+            except Exception as error:
+                messagebox.showerror(
+                    "No se pudo guardar",
+                    str(error),
+                )
+
+        self.btn(
+            body,
+            "GUARDAR PLAN",
+            save,
+            True,
+        ).pack(fill="x", pady=18)
+
     def investments(self):
-        w=self.modal('Cuenta de inversión','500x500');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Inversión simulada',18,INK,True).pack(anchor='w');self.label(b,'Rendimientos ilustrativos, no son una oferta real.',9,MUTED).pack(anchor='w',pady=5);prod=tk.StringVar(value='Conservadora');ttk.Combobox(b,textvariable=prod,values=('Conservadora','Equilibrada','Crecimiento'),state='readonly').pack(fill='x',pady=6);amount=self.field(b,'IMPORTE MXN');days=self.field(b,'PLAZO EN DÍAS','30')
+        window = self.modal(
+            "Cuenta de inversión",
+            "500x500",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Inversión simulada",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "Rendimientos ilustrativos, no son una oferta real.",
+            9,
+            MUTED,
+        ).pack(anchor="w", pady=5)
+
+        product = tk.StringVar(value="Conservadora")
+
+        ttk.Combobox(
+            body,
+            textvariable=product,
+            values=(
+                "Conservadora",
+                "Equilibrada",
+                "Crecimiento",
+            ),
+            state="readonly",
+        ).pack(fill="x", pady=6)
+
+        amount = self.field(body, "IMPORTE MXN")
+        days = self.field(body, "PLAZO EN DÍAS", "30")
+
         def go():
             try:
-                n=num(amount.get());d=int(num(days.get()));rates={'Conservadora':.05,'Equilibrada':.09,'Crecimiento':.13};r=rates[prod.get()]
-                if d<1 or d>3650:raise ValueError('El plazo debe estar entre 1 y 3650 días.')
-                self.store.add_tx(self.user['id'],'Inversión',n,f'{prod.get()}, {d} días');self.store.db.execute('INSERT INTO investments(user_id,product,amount,rate,days,created) VALUES(?,?,?,?,?,?)',(self.user['id'],prod.get(),n,r,d,stamp()));self.store.db.commit();self.done(w,f'Inversión simulada. Rendimiento simple estimado: {pesos(n*r*d/365)}. No está garantizado.')
-            except Exception as e:messagebox.showerror('No se pudo registrar',str(e))
-        self.btn(b,'SIMULAR INVERSIÓN',go,True).pack(fill='x',pady=18)
+                value = num(amount.get())
+                term = int(num(days.get()))
+
+                rates = {
+                    "Conservadora": 0.05,
+                    "Equilibrada": 0.09,
+                    "Crecimiento": 0.13,
+                }
+
+                rate = rates[product.get()]
+
+                if term < 1 or term > 3650:
+                    raise ValueError(
+                        "El plazo debe estar entre 1 y 3650 días."
+                    )
+
+                self.store.add_tx(
+                    self.user["id"],
+                    "Inversión",
+                    value,
+                    f"{product.get()}, {term} días",
+                )
+
+                self.store.db.execute(
+                    """
+                    INSERT INTO investments(
+                        user_id,product,amount,rate,days,created
+                    )
+                    VALUES(?,?,?,?,?,?)
+                    """,
+                    (
+                        self.user["id"],
+                        product.get(),
+                        value,
+                        rate,
+                        term,
+                        stamp(),
+                    ),
+                )
+
+                self.store.db.commit()
+
+                self.done(
+                    window,
+                    "Inversión simulada. "
+                    "Rendimiento simple estimado: "
+                    f"{pesos(value * rate * term / 365)}. "
+                    "No está garantizado.",
+                )
+
+            except Exception as error:
+                messagebox.showerror(
+                    "No se pudo registrar",
+                    str(error),
+                )
+
+        self.btn(
+            body,
+            "SIMULAR INVERSIÓN",
+            go,
+            True,
+        ).pack(fill="x", pady=18)
+
     def services(self):
-        w=self.modal('Pago de servicios','500x500');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Pago de servicio simulado',18,INK,True).pack(anchor='w');service=tk.StringVar(value='Agua');ttk.Combobox(b,textvariable=service,values=('Agua','TV','Teléfono','Internet','Electricidad'),state='readonly').pack(fill='x',pady=8);ref=self.field(b,'REFERENCIA DEL SERVICIO');amount=self.field(b,'IMPORTE MXN')
+        window = self.modal(
+            "Pago de servicios",
+            "500x500",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Pago de servicio simulado",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        service = tk.StringVar(value="Agua")
+
+        ttk.Combobox(
+            body,
+            textvariable=service,
+            values=(
+                "Agua",
+                "TV",
+                "Teléfono",
+                "Internet",
+                "Electricidad",
+            ),
+            state="readonly",
+        ).pack(fill="x", pady=8)
+
+        reference = self.field(
+            body,
+            "REFERENCIA DEL SERVICIO",
+        )
+
+        amount = self.field(
+            body,
+            "IMPORTE MXN",
+        )
+
         def go():
             try:
-                n=num(amount.get())
-                if not ref.get().strip():raise ValueError('La referencia es obligatoria.')
-                self.store.add_tx(self.user['id'],'Pago de servicio',n,f'{service.get()} · referencia {ref.get()}');self.store.db.execute('INSERT INTO services(user_id,service,reference,amount,created) VALUES(?,?,?,?,?)',(self.user['id'],service.get(),ref.get(),n,stamp()));self.store.db.commit();self.done(w,f'Pago de {service.get()} registrado en la simulación por {pesos(n)}.')
-            except Exception as e:messagebox.showerror('Pago no realizado',str(e))
-        self.btn(b,'REGISTRAR PAGO',go,True).pack(fill='x',pady=18)
+                value = num(amount.get())
+
+                if not reference.get().strip():
+                    raise ValueError(
+                        "La referencia es obligatoria."
+                    )
+
+                self.store.add_tx(
+                    self.user["id"],
+                    "Pago de servicio",
+                    value,
+                    f"{service.get()} · referencia "
+                    f"{reference.get()}",
+                )
+
+                self.store.db.execute(
+                    """
+                    INSERT INTO services(
+                        user_id,service,reference,amount,created
+                    )
+                    VALUES(?,?,?,?,?)
+                    """,
+                    (
+                        self.user["id"],
+                        service.get(),
+                        reference.get(),
+                        value,
+                        stamp(),
+                    ),
+                )
+
+                self.store.db.commit()
+
+                self.done(
+                    window,
+                    f"Pago de {service.get()} registrado "
+                    f"en la simulación por {pesos(value)}.",
+                )
+
+            except Exception as error:
+                messagebox.showerror(
+                    "Pago no realizado",
+                    str(error),
+                )
+
+        self.btn(
+            body,
+            "REGISTRAR PAGO",
+            go,
+            True,
+        ).pack(fill="x", pady=18)
+
     def joint(self):
-        w=self.modal('Cuentas conjuntas','500x450');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Registro de cotitular',18,INK,True).pack(anchor='w');self.label(b,'Registro local de demostración, no crea derechos bancarios reales.',9,MUTED).pack(anchor='w',pady=6);name=self.field(b,'NOMBRE DEL COTITULAR')
+        window = self.modal(
+            "Cuentas conjuntas",
+            "500x450",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Registro de cotitular",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "Registro local de demostración, "
+            "no crea derechos bancarios reales.",
+            9,
+            MUTED,
+            wraplength=380,
+            justify="left",
+        ).pack(anchor="w", pady=6)
+
+        name = self.field(
+            body,
+            "NOMBRE DEL COTITULAR",
+        )
+
         def go():
-            if not name.get().strip():messagebox.showerror('Dato faltante','Escribe el nombre.');return
-            self.store.db.execute('INSERT INTO joint(user_id,name,created) VALUES(?,?,?)',(self.user['id'],name.get().strip(),stamp()));self.store.db.commit();self.store.log(self.user['id'],'Cotitular registrado',name.get().strip());self.done(w,'Cotitular agregado a la lista de demostración.')
-        self.btn(b,'AGREGAR COTITULAR',go,True).pack(fill='x',pady=14)
-        for r in self.store.db.execute('SELECT * FROM joint WHERE user_id=? ORDER BY id DESC',(self.user['id'],)).fetchall():self.label(b,f"• {r['name']} · {r['created']}",10,MUTED).pack(anchor='w')
+            if not name.get().strip():
+                messagebox.showerror(
+                    "Dato faltante",
+                    "Escribe el nombre.",
+                )
+                return
+
+            self.store.db.execute(
+                """
+                INSERT INTO joint(user_id,name,created)
+                VALUES(?,?,?)
+                """,
+                (
+                    self.user["id"],
+                    name.get().strip(),
+                    stamp(),
+                ),
+            )
+
+            self.store.db.commit()
+
+            self.store.log(
+                self.user["id"],
+                "Cotitular registrado",
+                name.get().strip(),
+            )
+
+            self.done(
+                window,
+                "Cotitular agregado a la lista de demostración.",
+            )
+
+        self.btn(
+            body,
+            "AGREGAR COTITULAR",
+            go,
+            True,
+        ).pack(fill="x", pady=14)
+
+        rows = self.store.db.execute(
+            """
+            SELECT * FROM joint
+            WHERE user_id=?
+            ORDER BY id DESC
+            """,
+            (self.user["id"],),
+        ).fetchall()
+
+        for row in rows:
+            self.label(
+                body,
+                f"• {row['name']} · {row['created']}",
+                10,
+                MUTED,
+            ).pack(anchor="w")
+
     def converter(self):
-        w=self.modal('Conversor MXN / USD','460x430');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Cambio de moneda',18,INK,True).pack(anchor='w');self.label(b,'Tipo de cambio de ejemplo. No es cotización en tiempo real.',9,MUTED).pack(anchor='w',pady=5);rate=self.field(b,'MXN POR 1 USD',self.fx);amount=self.field(b,'CANTIDAD','100');direction=tk.StringVar(value='MXN a USD');ttk.Combobox(b,textvariable=direction,values=('MXN a USD','USD a MXN'),state='readonly').pack(fill='x',pady=8);result=self.label(b,'Resultado: 0.00',16,GOLD,True);result.pack(anchor='w',pady=12)
-        def calc():
-            try:r=num(rate.get());n=num(amount.get());
-            except ValueError:messagebox.showerror('Dato inválido','Escribe cantidades numéricas.');return
-            if r<=0 or n<0:messagebox.showerror('Dato inválido','El tipo de cambio debe ser positivo.');return
-            self.fx=r;out=n/r if direction.get()=='MXN a USD' else n*r;result.config(text=f"Resultado: {out:,.2f} {'USD' if direction.get()=='MXN a USD' else 'MXN'}")
-        self.btn(b,'CONVERTIR',calc,True).pack(fill='x')
+        window = self.modal(
+            "Conversor MXN / USD",
+            "460x430",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Cambio de moneda",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "Tipo de cambio de ejemplo. "
+            "No es cotización en tiempo real.",
+            9,
+            MUTED,
+            wraplength=360,
+            justify="left",
+        ).pack(anchor="w", pady=5)
+
+        rate = self.field(
+            body,
+            "MXN POR 1 USD",
+            self.fx,
+        )
+
+        amount = self.field(
+            body,
+            "CANTIDAD",
+            "100",
+        )
+
+        direction = tk.StringVar(
+            value="MXN a USD"
+        )
+
+        ttk.Combobox(
+            body,
+            textvariable=direction,
+            values=("MXN a USD", "USD a MXN"),
+            state="readonly",
+        ).pack(fill="x", pady=8)
+
+        result = self.label(
+            body,
+            "Resultado: 0.00",
+            16,
+            GOLD,
+            True,
+        )
+        result.pack(anchor="w", pady=12)
+
+        def calculate():
+            try:
+                exchange_rate = num(rate.get())
+                value = num(amount.get())
+            except ValueError:
+                messagebox.showerror(
+                    "Dato inválido",
+                    "Escribe cantidades numéricas.",
+                )
+                return
+
+            if exchange_rate <= 0 or value < 0:
+                messagebox.showerror(
+                    "Dato inválido",
+                    "El tipo de cambio debe ser positivo.",
+                )
+                return
+
+            self.fx = exchange_rate
+
+            output = (
+                value / exchange_rate
+                if direction.get() == "MXN a USD"
+                else value * exchange_rate
+            )
+
+            currency = (
+                "USD"
+                if direction.get() == "MXN a USD"
+                else "MXN"
+            )
+
+            result.configure(
+                text=f"Resultado: {output:,.2f} {currency}"
+            )
+
+        self.btn(
+            body,
+            "CONVERTIR",
+            calculate,
+            True,
+        ).pack(fill="x")
+
     def cashback(self):
-        w=self.modal('Calculadora cashback','450x390');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Calcula tu cashback',18,INK,True).pack(anchor='w');amount=self.field(b,'IMPORTE DE COMPRA MXN');rate=tk.StringVar(value='1%');ttk.Combobox(b,textvariable=rate,values=('1%','2%'),state='readonly').pack(fill='x',pady=8);result=self.label(b,'Cashback: $0.00',15,GOLD,True);result.pack(anchor='w',pady=10)
-        def calc():
-            try:n=num(amount.get())
-            except ValueError:messagebox.showerror('Dato inválido','Escribe una cantidad.',parent=w);return
-            if n<=0:messagebox.showerror('Dato inválido','La compra debe ser mayor que cero.',parent=w);return
-            c=round(n*(.01 if rate.get()=='1%' else .02),2);result.config(text='Cashback: '+pesos(c))
-            if c<=0:messagebox.showinfo('Cashback','El importe es muy pequeño para generar cashback.',parent=w);return
-            if messagebox.askyesno('Registrar','¿Registrar cashback en la cuenta demo?',parent=w):
-                self.store.add_tx(self.user['id'],'Cashback',c,f'Cashback {rate.get()} sobre compra {pesos(n)}');self.refresh()
-        self.btn(b,'CALCULAR',calc,True).pack(fill='x')
+        window = self.modal(
+            "Calculadora cashback",
+            "450x390",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Calcula tu cashback",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        amount = self.field(
+            body,
+            "IMPORTE DE COMPRA MXN",
+        )
+
+        rate = tk.StringVar(value="1%")
+
+        ttk.Combobox(
+            body,
+            textvariable=rate,
+            values=("1%", "2%"),
+            state="readonly",
+        ).pack(fill="x", pady=8)
+
+        result = self.label(
+            body,
+            "Cashback: $0.00",
+            15,
+            GOLD,
+            True,
+        )
+        result.pack(anchor="w", pady=10)
+
+        def calculate():
+            try:
+                value = num(amount.get())
+            except ValueError:
+                messagebox.showerror(
+                    "Dato inválido",
+                    "Escribe una cantidad.",
+                    parent=window,
+                )
+                return
+
+            if value <= 0:
+                messagebox.showerror(
+                    "Dato inválido",
+                    "La compra debe ser mayor que cero.",
+                    parent=window,
+                )
+                return
+
+            cashback_value = round(
+                value * (
+                    0.01 if rate.get() == "1%" else 0.02
+                ),
+                2,
+            )
+
+            result.configure(
+                text="Cashback: " + pesos(cashback_value)
+            )
+
+            if cashback_value <= 0:
+                messagebox.showinfo(
+                    "Cashback",
+                    "El importe es muy pequeño para generar cashback.",
+                    parent=window,
+                )
+                return
+
+            if messagebox.askyesno(
+                "Registrar",
+                "¿Registrar cashback en la cuenta demo?",
+                parent=window,
+            ):
+                self.store.add_tx(
+                    self.user["id"],
+                    "Cashback",
+                    cashback_value,
+                    f"Cashback {rate.get()} "
+                    f"sobre compra {pesos(value)}",
+                )
+                self.refresh()
+
+        self.btn(
+            body,
+            "CALCULAR",
+            calculate,
+            True,
+        ).pack(fill="x")
+
     def scheduled(self):
-        w=self.modal('Transferencias programadas','700x600');b=self.panel(w,WHITE,padx=20,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Programar transferencia',17,INK,True).pack(anchor='w');dest=self.field(b,'CUENTA O CLABE DEL DESTINATARIO');amount=self.field(b,'IMPORTE MXN');note=self.field(b,'CONCEPTO','Pago programado');when=self.field(b,'FECHA Y HORA (AAAA-MM-DD HH:MM)',(datetime.now()+timedelta(days=1)).strftime('%Y-%m-%d %H:%M'))
+        window = self.modal(
+            "Transferencias programadas",
+            "700x600",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=20,
+            pady=16,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=12,
+            pady=12,
+        )
+
+        self.label(
+            body,
+            "Programar transferencia",
+            17,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        destination = self.field(
+            body,
+            "CUENTA O CLABE DEL DESTINATARIO",
+        )
+
+        amount = self.field(
+            body,
+            "IMPORTE MXN",
+        )
+
+        note = self.field(
+            body,
+            "CONCEPTO",
+            "Pago programado",
+        )
+
+        when = self.field(
+            body,
+            "FECHA Y HORA (AAAA-MM-DD HH:MM)",
+            (
+                datetime.now() + timedelta(days=1)
+            ).strftime("%Y-%m-%d %H:%M"),
+        )
+
         def go():
-            try:n=num(amount.get());dt=datetime.strptime(when.get(),'%Y-%m-%d %H:%M')
-            except ValueError:messagebox.showerror('Datos inválidos','Revisa el importe y el formato de fecha.');return
-            if n<=0 or dt<=datetime.now() or not dest.get().strip():messagebox.showerror('Datos inválidos','Fecha futura, importe positivo y destinatario obligatorio.');return
-            self.store.db.execute("INSERT INTO scheduled(user_id,recipient,amount,note,run_at,status,created) VALUES(?,?,?,?,?,'Pendiente',?)",(self.user['id'],dest.get().strip(),n,note.get(),dt.strftime('%Y-%m-%d %H:%M:%S'),stamp()));self.store.db.commit();self.done(w,f'Transferencia programada. Se revisará al abrir sesión después de la fecha indicada. Si la cuenta no pertenece a Aurora se cobrará comisión de {pesos(EXTERNAL_FEE)}.')
-        self.btn(b,'PROGRAMAR',go,True).pack(fill='x',pady=10);self.label(b,'Programaciones registradas',12,GOLD,True).pack(anchor='w');t=self.tree(b,('fecha','destino','importe','estado'),(165,200,100,260))
-        for r in self.store.db.execute('SELECT * FROM scheduled WHERE user_id=? ORDER BY id DESC',(self.user['id'],)).fetchall():t.insert('','end',values=(r['run_at'],r['recipient'],pesos(r['amount']),r['status']))
+            try:
+                value = num(amount.get())
+                date = datetime.strptime(
+                    when.get(),
+                    "%Y-%m-%d %H:%M",
+                )
+            except ValueError:
+                messagebox.showerror(
+                    "Datos inválidos",
+                    "Revisa el importe y el formato de fecha.",
+                )
+                return
+
+            if (
+                value <= 0
+                or date <= datetime.now()
+                or not destination.get().strip()
+            ):
+                messagebox.showerror(
+                    "Datos inválidos",
+                    "Fecha futura, importe positivo "
+                    "y destinatario obligatorio.",
+                )
+                return
+
+            self.store.db.execute(
+                """
+                INSERT INTO scheduled(
+                    user_id,recipient,amount,note,
+                    run_at,status,created
+                )
+                VALUES(?,?,?,?,?,'Pendiente',?)
+                """,
+                (
+                    self.user["id"],
+                    destination.get().strip(),
+                    value,
+                    note.get(),
+                    date.strftime("%Y-%m-%d %H:%M:%S"),
+                    stamp(),
+                ),
+            )
+
+            self.store.db.commit()
+
+            self.done(
+                window,
+                "Transferencia programada. Se revisará al abrir "
+                "sesión después de la fecha indicada. "
+                "Si la cuenta no pertenece a Aurora se cobrará "
+                f"comisión de {pesos(EXTERNAL_FEE)}.",
+            )
+
+        self.btn(
+            body,
+            "PROGRAMAR",
+            go,
+            True,
+        ).pack(fill="x", pady=10)
+
+        self.label(
+            body,
+            "Programaciones registradas",
+            12,
+            GOLD,
+            True,
+        ).pack(anchor="w")
+
+        tree = self.tree(
+            body,
+            ("fecha", "destino", "importe", "estado"),
+            (165, 200, 100, 260),
+        )
+
+        rows = self.store.db.execute(
+            """
+            SELECT * FROM scheduled
+            WHERE user_id=?
+            ORDER BY id DESC
+            """,
+            (self.user["id"],),
+        ).fetchall()
+
+        for row in rows:
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    row["run_at"],
+                    row["recipient"],
+                    pesos(row["amount"]),
+                    row["status"],
+                ),
+            )
+
     def receipts(self):
-        w=self.modal('Tickets y exportación','500x520');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Comprobantes',18,INK,True).pack(anchor='w');self.label(b,'TXT y CSV incluidos. PDF y QR requieren bibliotecas opcionales. Correo y WhatsApp abren la aplicación, pero no envían sin tu confirmación.',9,MUTED,wraplength=430,justify='left').pack(anchor='w',pady=8)
-        for text,cmd in [('Guardar ticket TXT',self.save_txt),('Crear ticket PDF',self.save_pdf),('Crear código QR',self.save_qr),('Exportar historial CSV',self.export_csv),('Compartir ticket por WhatsApp',self.whatsapp),('Preparar correo',self.email),('Imprimir ticket',self.print_ticket)]:self.btn(b,text,cmd).pack(fill='x',pady=4)
-    def ticket_text(self):return f'BANCO AURORA | COMPROBANTE DE DEMOSTRACIÓN\nTitular: {self.user["name"]}\nCuenta: {self.user["account"]}\nFecha: {stamp()}\n{self.last_receipt or "Resumen de cuenta"}\nSaldo actual: {pesos(self.user["balance"])}\nEste documento no es comprobante bancario real.\n'
+        window = self.modal(
+            "Tickets y exportación",
+            "500x520",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Comprobantes",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "TXT y CSV incluidos. PDF y QR requieren "
+            "bibliotecas opcionales. Correo y WhatsApp "
+            "abren la aplicación, pero no envían "
+            "sin tu confirmación.",
+            9,
+            MUTED,
+            wraplength=430,
+            justify="left",
+        ).pack(anchor="w", pady=8)
+
+        actions = [
+            ("Guardar ticket TXT", self.save_txt),
+            ("Crear ticket PDF", self.save_pdf),
+            ("Crear código QR", self.save_qr),
+            ("Exportar historial CSV", self.export_csv),
+            ("Compartir ticket por WhatsApp", self.whatsapp),
+            ("Preparar correo", self.email),
+            ("Imprimir ticket", self.print_ticket),
+        ]
+
+        for text, command in actions:
+            self.btn(
+                body,
+                text,
+                command,
+            ).pack(fill="x", pady=4)
+
+    def ticket_text(self):
+        return (
+            "BANCO AURORA | COMPROBANTE DE DEMOSTRACIÓN\n"
+            f"Titular: {self.user['name']}\n"
+            f"Cuenta: {self.user['account']}\n"
+            f"Fecha: {stamp()}\n"
+            f"{self.last_receipt or 'Resumen de cuenta'}\n"
+            f"Saldo actual: {pesos(self.user['balance'])}\n"
+            "Este documento no es comprobante bancario real.\n"
+        )
+
     def save_txt(self):
-        path=filedialog.asksaveasfilename(defaultextension='.txt',filetypes=[('Texto','*.txt')],initialfile='ticket_aurora.txt')
-        if path:Path(path).write_text(self.ticket_text(),encoding='utf-8');messagebox.showinfo('Ticket guardado',path)
+        path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Texto", "*.txt")],
+            initialfile="ticket_aurora.txt",
+        )
+
+        if path:
+            Path(path).write_text(
+                self.ticket_text(),
+                encoding="utf-8",
+            )
+            messagebox.showinfo(
+                "Ticket guardado",
+                path,
+            )
+
     def save_pdf(self):
-        try:from reportlab.pdfgen import canvas
-        except ImportError:messagebox.showwarning('Biblioteca opcional','Para PDF instala: pip install reportlab');return
-        path=filedialog.asksaveasfilename(defaultextension='.pdf',filetypes=[('PDF','*.pdf')],initialfile='ticket_aurora.pdf')
-        if not path:return
-        c=canvas.Canvas(path);y=780
-        for line in self.ticket_text().splitlines():c.drawString(45,y,line[:110]);y-=18
-        c.save();messagebox.showinfo('PDF creado',path)
-    def save_qr(self):
-        try:import qrcode
-        except ImportError:messagebox.showwarning('Biblioteca opcional','Para QR instala: pip install qrcode[pil]');return
-        path=filedialog.asksaveasfilename(defaultextension='.png',filetypes=[('PNG','*.png')],initialfile='ticket_aurora_qr.png')
-        if path:qrcode.make(self.ticket_text()).save(path);messagebox.showinfo('QR creado',path)
-    def export_csv(self):
-        path=filedialog.asksaveasfilename(defaultextension='.csv',filetypes=[('CSV','*.csv')],initialfile='historial_aurora.csv')
-        if not path:return
-        rows=self.store.db.execute('SELECT * FROM tx WHERE user_id=? ORDER BY id',(self.user['id'],)).fetchall()
-        with open(path,'w',newline='',encoding='utf-8-sig') as f:
-            wr=csv.writer(f);wr.writerow(['Fecha','Operación','Importe','Comisión','Detalle','Moneda']);wr.writerows([[r['created'],r['kind'],r['amount'],r['fee'],r['detail'],r['currency']] for r in rows])
-        self.store.log(self.user['id'],'Exportación CSV',path);messagebox.showinfo('Exportación completa',path)
-    def whatsapp(self):webbrowser.open('https://wa.me/?text='+urllib.parse.quote(self.ticket_text()))
-    def email(self):webbrowser.open('mailto:?subject='+urllib.parse.quote('Ticket Banco Aurora demo')+'&body='+urllib.parse.quote(self.ticket_text()))
-    def print_ticket(self):
-        path=APP_DIR/'ticket_aurora.txt';path.write_text(self.ticket_text(),encoding='utf-8')
         try:
-            if sys.platform.startswith('win'):os.startfile(str(path),'print')
-            else:subprocess.run(['lp',str(path)],check=True)
-            messagebox.showinfo('Impresión','Ticket enviado a la impresora predeterminada.')
-        except Exception:messagebox.showinfo('Ticket preparado',f'No se pudo imprimir automáticamente. El archivo quedó en {path}')
+            from reportlab.pdfgen import canvas
+        except ImportError:
+            messagebox.showwarning(
+                "Biblioteca opcional",
+                "Para PDF instala: pip install reportlab",
+            )
+            return
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF", "*.pdf")],
+            initialfile="ticket_aurora.pdf",
+        )
+
+        if not path:
+            return
+
+        pdf = canvas.Canvas(path)
+        y = 780
+
+        for line in self.ticket_text().splitlines():
+            pdf.drawString(45, y, line[:110])
+            y -= 18
+
+        pdf.save()
+
+        messagebox.showinfo(
+            "PDF creado",
+            path,
+        )
+
+    def save_qr(self):
+        try:
+            import qrcode
+        except ImportError:
+            messagebox.showwarning(
+                "Biblioteca opcional",
+                "Para QR instala: pip install qrcode[pil]",
+            )
+            return
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG", "*.png")],
+            initialfile="ticket_aurora_qr.png",
+        )
+
+        if path:
+            qrcode.make(self.ticket_text()).save(path)
+
+            messagebox.showinfo(
+                "QR creado",
+                path,
+            )
+
+    def export_csv(self):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            initialfile="historial_aurora.csv",
+        )
+
+        if not path:
+            return
+
+        rows = self.store.db.execute(
+            """
+            SELECT * FROM tx
+            WHERE user_id=?
+            ORDER BY id
+            """,
+            (self.user["id"],),
+        ).fetchall()
+
+        with open(
+            path,
+            "w",
+            newline="",
+            encoding="utf-8-sig",
+        ) as file:
+            writer = csv.writer(file)
+
+            writer.writerow(
+                [
+                    "Fecha",
+                    "Operación",
+                    "Importe",
+                    "Comisión",
+                    "Detalle",
+                    "Moneda",
+                ]
+            )
+
+            writer.writerows(
+                [
+                    [
+                        row["created"],
+                        row["kind"],
+                        row["amount"],
+                        row["fee"],
+                        row["detail"],
+                        row["currency"],
+                    ]
+                    for row in rows
+                ]
+            )
+
+        self.store.log(
+            self.user["id"],
+            "Exportación CSV",
+            path,
+        )
+
+        messagebox.showinfo(
+            "Exportación completa",
+            path,
+        )
+
+    def whatsapp(self):
+        webbrowser.open(
+            "https://wa.me/?text="
+            + urllib.parse.quote(self.ticket_text())
+        )
+
+    def email(self):
+        webbrowser.open(
+            "mailto:?subject="
+            + urllib.parse.quote("Ticket Banco Aurora demo")
+            + "&body="
+            + urllib.parse.quote(self.ticket_text())
+        )
+
+    def print_ticket(self):
+        path = APP_DIR / "ticket_aurora.txt"
+
+        path.write_text(
+            self.ticket_text(),
+            encoding="utf-8",
+        )
+
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(str(path), "print")
+            else:
+                subprocess.run(
+                    ["lp", str(path)],
+                    check=True,
+                )
+
+            messagebox.showinfo(
+                "Impresión",
+                "Ticket enviado a la impresora predeterminada.",
+            )
+
+        except Exception:
+            messagebox.showinfo(
+                "Ticket preparado",
+                "No se pudo imprimir automáticamente. "
+                f"El archivo quedó en {path}",
+            )
+
     def profile(self):
-        w=self.modal('Perfil y seguridad','570x740');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14);self.label(b,'Perfil y seguridad',18,INK,True).pack(anchor='w');self.label(b,f"Nombre: {self.user['name']}\nUsuario: {self.user['username']}\nCuenta: {self.user['account']}\nCLABE demo: {self.user['clabe']}",10,MUTED,justify='left').pack(anchor='w',pady=8);limit=self.field(b,'LÍMITE DIARIO MXN',self.user['daily_limit']);self.label(b,'MONEDA PRINCIPAL (SALDO EN EL RESUMEN)',9,MUTED,True).pack(anchor='w',pady=(10,0));currency=tk.StringVar(value=self.user['currency']);ttk.Combobox(b,textvariable=currency,values=('MXN','USD'),state='readonly').pack(fill='x',pady=5);sound=tk.BooleanVar(value=self.sound);tk.Checkbutton(b,text='Sonidos de teclado y botones',variable=sound,bg=WHITE,fg=INK).pack(anchor='w',pady=5);voice=tk.BooleanVar(value=bool(self.user['voice']));tk.Checkbutton(b,text='Habilitar comandos de voz opcionales',variable=voice,bg=WHITE,fg=INK).pack(anchor='w',pady=3);face=tk.BooleanVar(value=bool(self.user['face']));tk.Checkbutton(b,text='Habilitar prueba de visión artificial',variable=face,bg=WHITE,fg=INK).pack(anchor='w',pady=3);self.label(b,'La visión artificial solo detecta un rostro, no verifica identidad ni guarda biometría.',9,MUTED,wraplength=450,justify='left').pack(anchor='w',pady=5)
+        window = self.modal(
+            "Perfil y seguridad",
+            "570x740",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Perfil y seguridad",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            f"Nombre: {self.user['name']}\n"
+            f"Usuario: {self.user['username']}\n"
+            f"Cuenta: {self.user['account']}\n"
+            f"CLABE demo: {self.user['clabe']}",
+            10,
+            MUTED,
+            justify="left",
+        ).pack(anchor="w", pady=8)
+
+        limit = self.field(
+            body,
+            "LÍMITE DIARIO MXN",
+            self.user["daily_limit"],
+        )
+
+        self.label(
+            body,
+            "MONEDA PRINCIPAL (SALDO EN EL RESUMEN)",
+            9,
+            MUTED,
+            True,
+        ).pack(anchor="w", pady=(10, 0))
+
+        currency = tk.StringVar(
+            value=self.user["currency"]
+        )
+
+        ttk.Combobox(
+            body,
+            textvariable=currency,
+            values=("MXN", "USD"),
+            state="readonly",
+        ).pack(fill="x", pady=5)
+
+        sound = tk.BooleanVar(value=self.sound)
+
+        tk.Checkbutton(
+            body,
+            text="Sonidos de teclado y botones",
+            variable=sound,
+            bg=WHITE,
+            fg=INK,
+        ).pack(anchor="w", pady=5)
+
+        voice = tk.BooleanVar(
+            value=bool(self.user["voice"])
+        )
+
+        tk.Checkbutton(
+            body,
+            text="Habilitar comandos de voz opcionales",
+            variable=voice,
+            bg=WHITE,
+            fg=INK,
+        ).pack(anchor="w", pady=3)
+
+        face = tk.BooleanVar(
+            value=bool(self.user["face"])
+        )
+
+        tk.Checkbutton(
+            body,
+            text="Habilitar prueba de visión artificial",
+            variable=face,
+            bg=WHITE,
+            fg=INK,
+        ).pack(anchor="w", pady=3)
+
+        self.label(
+            body,
+            "La visión artificial solo detecta un rostro, "
+            "no verifica identidad ni guarda biometría.",
+            9,
+            MUTED,
+            wraplength=450,
+            justify="left",
+        ).pack(anchor="w", pady=5)
+
         def save():
-            try:n=num(limit.get())
-            except ValueError:messagebox.showerror('Dato inválido','El límite debe ser numérico.');return
-            if n<=0:messagebox.showerror('Dato inválido','El límite debe ser positivo.');return
-            self.sound=sound.get();self.store.db.execute('UPDATE users SET daily_limit=?,currency=?,voice=?,face=? WHERE id=?',(n,currency.get(),int(voice.get()),int(face.get()),self.user['id']));self.store.db.commit();self.store.log(self.user['id'],'Perfil actualizado','Preferencias guardadas');w.destroy();self.refresh()
-        self.btn(b,'GUARDAR PERFIL',save,True).pack(fill='x',pady=10);self.btn(b,'Cambiar NIP',self.change_pin).pack(fill='x',pady=3);self.btn(b,'Probar visión artificial',self.face_detection).pack(fill='x',pady=3);self.btn(b,'Comando de voz',self.voice_command).pack(fill='x',pady=3);self.btn(b,'Bloquear cuenta',self.block_account).pack(fill='x',pady=3);self.btn(b,'Historial de accesos',self.logs).pack(fill='x',pady=3)
+            try:
+                value = num(limit.get())
+            except ValueError:
+                messagebox.showerror(
+                    "Dato inválido",
+                    "El límite debe ser numérico.",
+                )
+                return
+
+            if value <= 0:
+                messagebox.showerror(
+                    "Dato inválido",
+                    "El límite debe ser positivo.",
+                )
+                return
+
+            self.sound = sound.get()
+
+            self.store.db.execute(
+                """
+                UPDATE users
+                SET daily_limit=?,
+                    currency=?,
+                    voice=?,
+                    face=?
+                WHERE id=?
+                """,
+                (
+                    value,
+                    currency.get(),
+                    int(voice.get()),
+                    int(face.get()),
+                    self.user["id"],
+                ),
+            )
+
+            self.store.db.commit()
+
+            self.store.log(
+                self.user["id"],
+                "Perfil actualizado",
+                "Preferencias guardadas",
+            )
+
+            window.destroy()
+            self.refresh()
+
+        self.btn(
+            body,
+            "GUARDAR PERFIL",
+            save,
+            True,
+        ).pack(fill="x", pady=10)
+
+        for title, command in (
+            ("Cambiar NIP", self.change_pin),
+            ("Probar visión artificial", self.face_detection),
+            ("Comando de voz", self.voice_command),
+            ("Bloquear cuenta", self.block_account),
+            ("Historial de accesos", self.logs),
+        ):
+            self.btn(
+                body,
+                title,
+                command,
+            ).pack(fill="x", pady=3)
+
     def change_pin(self):
-        old=simpledialog.askstring('Cambiar NIP','NIP actual:',show='●',parent=self.root)
-        if old is None:return
-        u=self.store.db.execute('SELECT * FROM users WHERE id=?',(self.user['id'],)).fetchone()
-        if not self.store.verify(u,old):messagebox.showerror('Error','NIP actual incorrecto.');return
-        new=simpledialog.askstring('Cambiar NIP','Nuevo NIP numérico de 4 o más dígitos:',show='●',parent=self.root)
-        if not new:return
-        problem=pin_problem(new)
-        if problem:messagebox.showerror('NIP no permitido',problem);return
-        salt,digest=pin_hash(new);self.store.db.execute('UPDATE users SET salt=?,pinhash=? WHERE id=?',(salt,digest,self.user['id']));self.store.db.commit();self.store.log(self.user['id'],'NIP cambiado','Cambio realizado');messagebox.showinfo('Listo','NIP actualizado.')
+        old = simpledialog.askstring(
+            "Cambiar NIP",
+            "NIP actual:",
+            show="●",
+            parent=self.root,
+        )
+
+        if old is None:
+            return
+
+        user = self.store.db.execute(
+            "SELECT * FROM users WHERE id=?",
+            (self.user["id"],),
+        ).fetchone()
+
+        if not self.store.verify(user, old):
+            messagebox.showerror(
+                "Error",
+                "NIP actual incorrecto.",
+            )
+            return
+
+        new = simpledialog.askstring(
+            "Cambiar NIP",
+            "Nuevo NIP numérico de 4 o más dígitos:",
+            show="●",
+            parent=self.root,
+        )
+
+        if not new:
+            return
+
+        problem = pin_problem(new)
+
+        if problem:
+            messagebox.showerror(
+                "NIP no permitido",
+                problem,
+            )
+            return
+
+        salt, digest = pin_hash(new)
+
+        self.store.db.execute(
+            "UPDATE users SET salt=?,pinhash=? WHERE id=?",
+            (salt, digest, self.user["id"]),
+        )
+
+        self.store.db.commit()
+
+        self.store.log(
+            self.user["id"],
+            "NIP cambiado",
+            "Cambio realizado",
+        )
+
+        messagebox.showinfo(
+            "Listo",
+            "NIP actualizado.",
+        )
+
     def block_account(self):
-        if messagebox.askyesno('Bloquear cuenta','¿Bloquear esta cuenta y cerrar la sesión?'):
-            self.store.db.execute('UPDATE users SET blocked=1 WHERE id=?',(self.user['id'],));self.store.db.commit();self.store.log(self.user['id'],'Cuenta bloqueada','Bloqueo desde perfil');self.logout()
+        if messagebox.askyesno(
+            "Bloquear cuenta",
+            "¿Bloquear esta cuenta y cerrar la sesión?",
+        ):
+            self.store.db.execute(
+                "UPDATE users SET blocked=1 WHERE id=?",
+                (self.user["id"],),
+            )
+
+            self.store.db.commit()
+
+            self.store.log(
+                self.user["id"],
+                "Cuenta bloqueada",
+                "Bloqueo desde perfil",
+            )
+
+            self.logout()
+
     def logs(self):
-        w=self.modal('Historial de accesos','780x500');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);t=self.tree(b,('fecha','acción','detalle'),(170,190,420))
-        for r in self.store.db.execute('SELECT * FROM logs WHERE user_id=? ORDER BY id DESC LIMIT 300',(self.user['id'],)).fetchall():t.insert('','end',values=(r['created'],r['action'],r['detail']))
+        window = self.modal(
+            "Historial de accesos",
+            "780x500",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=16,
+            pady=16,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=12,
+            pady=12,
+        )
+
+        tree = self.tree(
+            body,
+            ("fecha", "acción", "detalle"),
+            (170, 190, 420),
+        )
+
+        rows = self.store.db.execute(
+            """
+            SELECT * FROM logs
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT 300
+            """,
+            (self.user["id"],),
+        ).fetchall()
+
+        for row in rows:
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    row["created"],
+                    row["action"],
+                    row["detail"],
+                ),
+            )
+
     def face_detection(self):
-        if not self.user['face']:messagebox.showinfo('Visión desactivada','Activa primero la opción de visión artificial en Perfil.');return
-        try:import cv2
-        except ImportError:messagebox.showwarning('Falta OpenCV','Instala con: pip install opencv-python');return
-        w=self.modal('Elegir cámara','470x500');b=self.panel(w,WHITE,padx=22,pady=18);b.pack(fill='both',expand=True,padx=14,pady=14)
-        self.label(b,'Visión artificial',18,INK,True).pack(anchor='w');self.label(b,'Elige qué cámara usar. Solo detecta rostros, no identifica personas.',9,MUTED,wraplength=400,justify='left').pack(anchor='w',pady=6)
-        self.label(b,'Vista',11,INK,True).pack(anchor='w',pady=(8,0));mir=tk.StringVar(value='Cámara normal');ttk.Combobox(b,textvariable=mir,values=('Cámara normal','Cámara espejo'),state='readonly').pack(fill='x',pady=4)
-        self.btn(b,'Cámara 1 (computadora)',lambda:go(1),True).pack(fill='x',pady=(10,4))
-        self.label(b,'Cámara 2 (celular con DroidCam)',11,INK,True).pack(anchor='w',pady=(14,0))
-        ip=self.field(b,'IP DEL CELULAR (opcional)');self.label(b,'Abre DroidCam en el celular, conecta ambos a la misma red Wi-Fi y escribe la IP que muestra la app (ejemplo 192.168.1.50). Si la dejas vacía, se usa el cliente DroidCam instalado en la computadora.',9,MUTED,wraplength=400,justify='left').pack(anchor='w')
-        self.btn(b,'Cámara 2 (celular)',lambda:go(2)).pack(fill='x',pady=10)
+        if not self.user["face"]:
+            messagebox.showinfo(
+                "Visión desactivada",
+                "Activa primero la opción de visión artificial "
+                "en Perfil.",
+            )
+            return
+
+        try:
+            import cv2
+        except ImportError:
+            messagebox.showwarning(
+                "Falta OpenCV",
+                "Instala con: pip install opencv-python",
+            )
+            return
+
+        window = self.modal(
+            "Elegir cámara",
+            "470x500",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=22,
+            pady=18,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Visión artificial",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "Elige qué cámara usar. Solo detecta rostros, "
+            "no identifica personas.",
+            9,
+            MUTED,
+            wraplength=400,
+            justify="left",
+        ).pack(anchor="w", pady=6)
+
+        self.label(
+            body,
+            "Vista",
+            11,
+            INK,
+            True,
+        ).pack(anchor="w", pady=(8, 0))
+
+        mirror = tk.StringVar(
+            value="Cámara normal"
+        )
+
+        ttk.Combobox(
+            body,
+            textvariable=mirror,
+            values=(
+                "Cámara normal",
+                "Cámara espejo",
+            ),
+            state="readonly",
+        ).pack(fill="x", pady=4)
+
+        self.btn(
+            body,
+            "Cámara 1 (computadora)",
+            lambda: go(1),
+            True,
+        ).pack(fill="x", pady=(10, 4))
+
+        self.label(
+            body,
+            "Cámara 2 (celular con DroidCam)",
+            11,
+            INK,
+            True,
+        ).pack(anchor="w", pady=(14, 0))
+
+        ip = self.field(
+            body,
+            "IP DEL CELULAR (opcional)",
+        )
+
+        self.label(
+            body,
+            "Abre DroidCam en el celular, conecta ambos "
+            "a la misma red Wi-Fi y escribe la IP que muestra "
+            "la app (ejemplo 192.168.1.50). Si la dejas vacía, "
+            "se usa el cliente DroidCam instalado "
+            "en la computadora.",
+            9,
+            MUTED,
+            wraplength=400,
+            justify="left",
+        ).pack(anchor="w")
+
+        self.btn(
+            body,
+            "Cámara 2 (celular)",
+            lambda: go(2),
+        ).pack(fill="x", pady=10)
+
         def go(which):
-            addr=ip.get().strip();flip=mir.get()=='Cámara espejo';w.destroy();self.run_face(cv2,which,addr,flip)
-    def open_camera(self,cv2,which,addr):
-        if which==1:sources=[0]
-        elif addr:
-            if not re.fullmatch(r'[0-9A-Za-z.\-]+(:\d{1,5})?',addr):raise ValueError('La IP no es válida. Escribe algo como 192.168.1.50.')
-            sources=[f"http://{addr}{'' if ':' in addr else ':4747'}/video"]
-        else:sources=[1,2]  # cliente DroidCam de la computadora (cámara virtual)
-        for s in sources:
-            cap=cv2.VideoCapture(s)
-            if cap.isOpened():return cap
-            cap.release()
+            address = ip.get().strip()
+            flip = mirror.get() == "Cámara espejo"
+            window.destroy()
+            self.run_face(
+                cv2,
+                which,
+                address,
+                flip,
+            )
+
+    def open_camera(self, cv2, which, address):
+        if which == 1:
+            sources = [0]
+
+        elif address:
+            if not re.fullmatch(
+                r"[0-9A-Za-z.\-]+(:\d{1,5})?",
+                address,
+            ):
+                raise ValueError(
+                    "La IP no es válida. "
+                    "Escribe algo como 192.168.1.50."
+                )
+
+            port = "" if ":" in address else ":4747"
+            sources = [
+                f"http://{address}{port}/video"
+            ]
+
+        else:
+            sources = [1, 2]
+
+        for source in sources:
+            capture = cv2.VideoCapture(source)
+
+            if capture.isOpened():
+                return capture
+
+            capture.release()
+
         return None
-    def run_face(self,cv2,which,addr,mirror=False):
-        name='Cámara 1 (computadora)' if which==1 else 'Cámara 2 (celular, DroidCam)'
-        try:cap=self.open_camera(cv2,which,addr)
-        except ValueError as e:messagebox.showerror('Dato inválido',str(e));return
-        if cap is None:
-            messagebox.showerror('Cámara no disponible','No se pudo abrir la cámara 1 de la computadora. Cierra otras aplicaciones que la usen.' if which==1 else 'No se pudo conectar con DroidCam. Abre la app en el celular, revisa que ambos estén en la misma red Wi-Fi y que la IP sea la que muestra la app (puerto 4747).');return
-        cascade=cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_frontalface_default.xml');found=False;messagebox.showinfo('Visión artificial',f'Usando {name}. Pulsa M para cambiar entre cámara normal y espejo, y Q para salir. Solo detecta rostros.')
+
+    def run_face(
+        self,
+        cv2,
+        which,
+        address,
+        mirror=False,
+    ):
+        name = (
+            "Cámara 1 (computadora)"
+            if which == 1
+            else "Cámara 2 (celular, DroidCam)"
+        )
+
+        try:
+            capture = self.open_camera(
+                cv2,
+                which,
+                address,
+            )
+        except ValueError as error:
+            messagebox.showerror(
+                "Dato inválido",
+                str(error),
+            )
+            return
+
+        if capture is None:
+            message = (
+                "No se pudo abrir la cámara 1 de la computadora. "
+                "Cierra otras aplicaciones que la usen."
+                if which == 1
+                else
+                "No se pudo conectar con DroidCam. "
+                "Abre la app en el celular, revisa que ambos "
+                "estén en la misma red Wi-Fi y que la IP "
+                "sea la que muestra la app (puerto 4747)."
+            )
+
+            messagebox.showerror(
+                "Cámara no disponible",
+                message,
+            )
+            return
+
+        cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades
+            + "haarcascade_frontalface_default.xml"
+        )
+
+        found = False
+
+        messagebox.showinfo(
+            "Visión artificial",
+            f"Usando {name}. "
+            "Pulsa M para cambiar entre cámara normal "
+            "y espejo, y Q para salir. Solo detecta rostros.",
+        )
+
         try:
             while True:
-                ok,frame=cap.read()
-                if not ok:break
-                if mirror:frame=cv2.flip(frame,1)
-                gray=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY);faces=cascade.detectMultiScale(gray,1.2,5,minSize=(60,60))
-                for x,y,w,h in faces:cv2.rectangle(frame,(x,y),(x+w,y+h),(40,180,120),2);found=True
-                cv2.imshow('Aurora | detección facial',frame)
-                k=cv2.waitKey(1)&0xff
-                if k==ord('q'):break
-                if k==ord('m'):mirror=not mirror
-        finally:cap.release();cv2.destroyAllWindows()
-        self.store.log(self.user['id'],'Visión artificial',('Rostro detectado' if found else 'Sin detección')+' · '+name);messagebox.showinfo('Resultado','Se detectó un rostro.' if found else 'No se detectó un rostro.')
+                ok, frame = capture.read()
+
+                if not ok:
+                    break
+
+                if mirror:
+                    frame = cv2.flip(frame, 1)
+
+                gray = cv2.cvtColor(
+                    frame,
+                    cv2.COLOR_BGR2GRAY,
+                )
+
+                faces = cascade.detectMultiScale(
+                    gray,
+                    1.2,
+                    5,
+                    minSize=(60, 60),
+                )
+
+                for x, y, width, height in faces:
+                    cv2.rectangle(
+                        frame,
+                        (x, y),
+                        (x + width, y + height),
+                        (40, 180, 120),
+                        2,
+                    )
+                    found = True
+
+                cv2.imshow(
+                    "Aurora | detección facial",
+                    frame,
+                )
+
+                key = cv2.waitKey(1) & 0xFF
+
+                if key == ord("q"):
+                    break
+
+                if key == ord("m"):
+                    mirror = not mirror
+
+        finally:
+            capture.release()
+            cv2.destroyAllWindows()
+
+        self.store.log(
+            self.user["id"],
+            "Visión artificial",
+            (
+                "Rostro detectado"
+                if found
+                else "Sin detección"
+            )
+            + " · "
+            + name,
+        )
+
+        messagebox.showinfo(
+            "Resultado",
+            (
+                "Se detectó un rostro."
+                if found
+                else "No se detectó un rostro."
+            ),
+        )
+
     def voice_command(self):
-        if not self.user['voice']:messagebox.showinfo('Voz desactivada','Activa los comandos de voz en Perfil.');return
-        try:import speech_recognition as sr
-        except ImportError:messagebox.showwarning('Voz opcional','Instala con: pip install SpeechRecognition pyaudio');return
+        if not self.user["voice"]:
+            messagebox.showinfo(
+                "Voz desactivada",
+                "Activa los comandos de voz en Perfil.",
+            )
+            return
+
         try:
-            r=sr.Recognizer();messagebox.showinfo('Comando de voz','Di una consulta de navegación, por ejemplo “abrir movimientos”. No se ejecutan operaciones monetarias por voz.')
-            with sr.Microphone() as source:r.adjust_for_ambient_noise(source,duration=.4);audio=r.listen(source,timeout=5,phrase_time_limit=5)
-            phrase=r.recognize_google(audio,language='es-MX').lower();self.store.log(self.user['id'],'Comando de voz',phrase)
-            if 'movimiento' in phrase or 'historial' in phrase:self.history()
-            elif 'ahorro' in phrase:self.savings()
-            elif 'inversión' in phrase or 'inversion' in phrase:self.investments()
-            elif 'servicio' in phrase:self.services()
-            elif 'perfil' in phrase or 'seguridad' in phrase:self.profile()
-            else:messagebox.showinfo('Comando reconocido',f'Escuché: {phrase}. No tiene una acción asociada.')
-        except Exception as e:messagebox.showwarning('No se reconoció','Revisa el micrófono y, para reconocimiento en línea, la conexión a internet.\n'+str(e))
+            import speech_recognition as sr
+        except ImportError:
+            messagebox.showwarning(
+                "Voz opcional",
+                "Instala con: pip install SpeechRecognition pyaudio",
+            )
+            return
+
+        try:
+            recognizer = sr.Recognizer()
+
+            messagebox.showinfo(
+                "Comando de voz",
+                "Di una consulta de navegación, por ejemplo "
+                "“abrir movimientos”. No se ejecutan "
+                "operaciones monetarias por voz.",
+            )
+
+            with sr.Microphone() as source:
+                recognizer.adjust_for_ambient_noise(
+                    source,
+                    duration=0.4,
+                )
+
+                audio = recognizer.listen(
+                    source,
+                    timeout=5,
+                    phrase_time_limit=5,
+                )
+
+            phrase = recognizer.recognize_google(
+                audio,
+                language="es-MX",
+            ).lower()
+
+            self.store.log(
+                self.user["id"],
+                "Comando de voz",
+                phrase,
+            )
+
+            if (
+                "movimiento" in phrase
+                or "historial" in phrase
+            ):
+                self.history()
+
+            elif "ahorro" in phrase:
+                self.savings()
+
+            elif (
+                "inversión" in phrase
+                or "inversion" in phrase
+            ):
+                self.investments()
+
+            elif "servicio" in phrase:
+                self.services()
+
+            elif (
+                "perfil" in phrase
+                or "seguridad" in phrase
+            ):
+                self.profile()
+
+            else:
+                messagebox.showinfo(
+                    "Comando reconocido",
+                    f"Escuché: {phrase}. "
+                    "No tiene una acción asociada.",
+                )
+
+        except Exception as error:
+            messagebox.showwarning(
+                "No se reconoció",
+                "Revisa el micrófono y, para reconocimiento "
+                "en línea, la conexión a internet.\n"
+                + str(error),
+            )
+
     def balance_query(self):
-        w=self.modal('Consulta de saldo','480x380');b=self.panel(w,WHITE,padx=24,pady=20);b.pack(fill='both',expand=True,padx=14,pady=14)
-        self.label(b,'Consulta de saldo',18,INK,True).pack(anchor='w')
-        self.label(b,f'Cada consulta de saldo tiene una comisión de {pesos(QUERY_FEE)}, que se descuenta de tu cuenta.',10,MUTED,wraplength=410,justify='left').pack(anchor='w',pady=10)
+        window = self.modal(
+            "Consulta de saldo",
+            "480x380",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=24,
+            pady=20,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=14,
+            pady=14,
+        )
+
+        self.label(
+            body,
+            "Consulta de saldo",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "Cada consulta de saldo tiene una comisión de "
+            f"{pesos(QUERY_FEE)}, que se descuenta de tu cuenta.",
+            10,
+            MUTED,
+            wraplength=410,
+            justify="left",
+        ).pack(anchor="w", pady=10)
+
         def go():
-            if not messagebox.askyesno('Comisión por consulta',f'Se cobrará {pesos(QUERY_FEE)}. ¿Continuar?',parent=w):return
-            try:bal=self.store.consult(self.user['id'])
-            except Exception as e:messagebox.showerror('Consulta no realizada',str(e),parent=w);return
-            self.last_receipt=f'CONSULTA DE SALDO\nComisión: {pesos(QUERY_FEE)}\nFecha: {stamp()}';self.done(w,f'Saldo disponible: {pesos(bal)}\nComisión cobrada: {pesos(QUERY_FEE)}')
-        self.btn(b,'CONSULTAR SALDO',go,True).pack(fill='x',pady=18)
+            if not messagebox.askyesno(
+                "Comisión por consulta",
+                f"Se cobrará {pesos(QUERY_FEE)}. ¿Continuar?",
+                parent=window,
+            ):
+                return
+
+            try:
+                balance = self.store.consult(
+                    self.user["id"]
+                )
+            except Exception as error:
+                messagebox.showerror(
+                    "Consulta no realizada",
+                    str(error),
+                    parent=window,
+                )
+                return
+
+            self.last_receipt = (
+                "CONSULTA DE SALDO\n"
+                f"Comisión: {pesos(QUERY_FEE)}\n"
+                f"Fecha: {stamp()}"
+            )
+
+            self.done(
+                window,
+                f"Saldo disponible: {pesos(balance)}\n"
+                f"Comisión cobrada: {pesos(QUERY_FEE)}",
+            )
+
+        self.btn(
+            body,
+            "CONSULTAR SALDO",
+            go,
+            True,
+        ).pack(fill="x", pady=18)
+
     def alerts(self):
-        w=self.modal('Alertas de movimientos','780x520');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Alertas de movimientos',17,INK,True).pack(anchor='w',pady=(0,10))
-        t=self.tree(b,('fecha','alerta','estado'),(160,470,90))
-        for r in self.store.db.execute('SELECT * FROM alerts WHERE user_id=? ORDER BY id DESC LIMIT 200',(self.user['id'],)).fetchall():t.insert('','end',values=(r['created'],r['message'],'Leída' if r['seen'] else 'Nueva'))
+        window = self.modal(
+            "Alertas de movimientos",
+            "780x520",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=16,
+            pady=16,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=12,
+            pady=12,
+        )
+
+        self.label(
+            body,
+            "Alertas de movimientos",
+            17,
+            INK,
+            True,
+        ).pack(anchor="w", pady=(0, 10))
+
+        tree = self.tree(
+            body,
+            ("fecha", "alerta", "estado"),
+            (160, 470, 90),
+        )
+
+        rows = self.store.db.execute(
+            """
+            SELECT * FROM alerts
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT 200
+            """,
+            (self.user["id"],),
+        ).fetchall()
+
+        for row in rows:
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    row["created"],
+                    row["message"],
+                    "Leída" if row["seen"] else "Nueva",
+                ),
+            )
+
         def mark():
-            self.store.db.execute('UPDATE alerts SET seen=1 WHERE user_id=?',(self.user['id'],));self.store.db.commit();w.destroy();self.dashboard()
-        self.btn(b,'Marcar todas como leídas',mark,True).pack(anchor='e',pady=10)
+            self.store.db.execute(
+                "UPDATE alerts SET seen=1 WHERE user_id=?",
+                (self.user["id"],),
+            )
+            self.store.db.commit()
+            window.destroy()
+            self.dashboard()
+
+        self.btn(
+            body,
+            "Marcar todas como leídas",
+            mark,
+            True,
+        ).pack(anchor="e", pady=10)
+
     def cards(self):
-        w=self.modal('Tarjetas vinculadas','680x640');b=self.panel(w,WHITE,padx=20,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12)
-        self.label(b,'Tarjetas ligadas a tu cuenta',17,INK,True).pack(anchor='w')
-        self.label(b,'Tu tarjeta de débito está ligada a tu cuenta. Puedes vincular tarjetas de crédito. Simulación: solo se guardan los últimos 4 dígitos; no escribas datos de una tarjeta real.',9,MUTED,wraplength=620,justify='left').pack(anchor='w',pady=6)
-        top=self.panel(b,WHITE);top.pack(fill='x');t=self.tree(top,('tipo','tarjeta','titular','vence'),(90,200,220,80));t.configure(height=5)
+        window = self.modal(
+            "Tarjetas vinculadas",
+            "680x640",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=20,
+            pady=16,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=12,
+            pady=12,
+        )
+
+        self.label(
+            body,
+            "Tarjetas ligadas a tu cuenta",
+            17,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "Tu tarjeta de débito está ligada a tu cuenta. "
+            "Puedes vincular tarjetas de crédito. "
+            "Simulación: solo se guardan los últimos "
+            "4 dígitos; no escribas datos de una tarjeta real.",
+            9,
+            MUTED,
+            wraplength=620,
+            justify="left",
+        ).pack(anchor="w", pady=6)
+
+        top = self.panel(body, WHITE)
+        top.pack(fill="x")
+
+        tree = self.tree(
+            top,
+            ("tipo", "tarjeta", "titular", "vence"),
+            (90, 200, 220, 80),
+        )
+        tree.configure(height=5)
+
         def load():
-            for i in t.get_children():t.delete(i)
-            for r in self.store.cards(self.user['id']):t.insert('','end',iid=str(r['id']),values=(r['kind'],f"**** **** **** {r['last4']}",r['holder'],r['expiry']))
-        load();self.label(b,'Vincular tarjeta de crédito',12,GOLD,True).pack(anchor='w',pady=(14,0))
-        number=self.field(b,'NÚMERO DE TARJETA');holder=self.field(b,'NOMBRE DEL TITULAR',self.user['name']);expiry=self.field(b,'VIGENCIA (MM/AA)')
+            for item in tree.get_children():
+                tree.delete(item)
+
+            for row in self.store.cards(self.user["id"]):
+                tree.insert(
+                    "",
+                    "end",
+                    iid=str(row["id"]),
+                    values=(
+                        row["kind"],
+                        f"**** **** **** {row['last4']}",
+                        row["holder"],
+                        row["expiry"],
+                    ),
+                )
+
+        load()
+
+        self.label(
+            body,
+            "Vincular tarjeta de crédito",
+            12,
+            GOLD,
+            True,
+        ).pack(anchor="w", pady=(14, 0))
+
+        number = self.field(
+            body,
+            "NÚMERO DE TARJETA",
+        )
+
+        holder = self.field(
+            body,
+            "NOMBRE DEL TITULAR",
+            self.user["name"],
+        )
+
+        expiry = self.field(
+            body,
+            "VIGENCIA (MM/AA)",
+        )
+
         def link():
-            try:self.store.link_credit(self.user['id'],number.get(),holder.get(),expiry.get())
-            except ValueError as e:messagebox.showerror('No se pudo vincular',str(e),parent=w);return
-            number.delete(0,'end');expiry.delete(0,'end');load();messagebox.showinfo('Tarjeta vinculada','Tarjeta de crédito vinculada a tu cuenta.',parent=w)
+            try:
+                self.store.link_credit(
+                    self.user["id"],
+                    number.get(),
+                    holder.get(),
+                    expiry.get(),
+                )
+
+            except ValueError as error:
+                messagebox.showerror(
+                    "No se pudo vincular",
+                    str(error),
+                    parent=window,
+                )
+                return
+
+            number.delete(0, "end")
+            expiry.delete(0, "end")
+            load()
+
+            messagebox.showinfo(
+                "Tarjeta vinculada",
+                "Tarjeta de crédito vinculada a tu cuenta.",
+                parent=window,
+            )
+
         def unlink():
-            sel=t.selection()
-            if not sel:messagebox.showinfo('Selecciona una tarjeta','Elige una tarjeta de crédito de la lista.',parent=w);return
-            if not messagebox.askyesno('Desvincular','¿Desvincular la tarjeta seleccionada?',parent=w):return
-            if self.store.unlink_card(self.user['id'],int(sel[0])):self.store.log(self.user['id'],'Tarjeta desvinculada','Crédito');load()
-            else:messagebox.showinfo('No permitido','La tarjeta de débito está ligada a la cuenta y no se puede desvincular.',parent=w)
-        self.btn(b,'VINCULAR TARJETA DE CRÉDITO',link,True).pack(fill='x',pady=(14,4));self.btn(b,'Desvincular tarjeta seleccionada',unlink).pack(fill='x',pady=4)
+            selection = tree.selection()
+
+            if not selection:
+                messagebox.showinfo(
+                    "Selecciona una tarjeta",
+                    "Elige una tarjeta de crédito de la lista.",
+                    parent=window,
+                )
+                return
+
+            if not messagebox.askyesno(
+                "Desvincular",
+                "¿Desvincular la tarjeta seleccionada?",
+                parent=window,
+            ):
+                return
+
+            if self.store.unlink_card(
+                self.user["id"],
+                int(selection[0]),
+            ):
+                self.store.log(
+                    self.user["id"],
+                    "Tarjeta desvinculada",
+                    "Crédito",
+                )
+                load()
+
+            else:
+                messagebox.showinfo(
+                    "No permitido",
+                    "La tarjeta de débito está ligada "
+                    "a la cuenta y no se puede desvincular.",
+                    parent=window,
+                )
+
+        self.btn(
+            body,
+            "VINCULAR TARJETA DE CRÉDITO",
+            link,
+            True,
+        ).pack(fill="x", pady=(14, 4))
+
+        self.btn(
+            body,
+            "Desvincular tarjeta seleccionada",
+            unlink,
+        ).pack(fill="x", pady=4)
+
     def chat(self):
-        w=self.modal('Atención al cliente Aurora','600x560');b=self.panel(w,WHITE,padx=16,pady=16);b.pack(fill='both',expand=True,padx=12,pady=12);self.label(b,'Asistente Aurora',18,INK,True).pack(anchor='w');self.label(b,'Ayuda automática local, sin servidor.',9,MUTED).pack(anchor='w',pady=4);out=tk.Text(b,bg='#FBFAF6',fg=INK,wrap='word',relief='flat',height=18);out.pack(fill='both',expand=True);out.insert('end','Aurora: Puedo ayudarte con saldo, transferencias, NIP, ahorro, inversiones, comisiones, tarjetas, alertas y servicios.\n\n');row=self.panel(b,WHITE);row.pack(fill='x',pady=8);e=self.entry(row);e.pack(side='left',fill='x',expand=True,padx=(0,8))
-        dirty=[False]
+        window = self.modal(
+            "Atención al cliente Aurora",
+            "600x560",
+        )
+
+        body = self.panel(
+            window,
+            WHITE,
+            padx=16,
+            pady=16,
+        )
+        body.pack(
+            fill="both",
+            expand=True,
+            padx=12,
+            pady=12,
+        )
+
+        self.label(
+            body,
+            "Asistente Aurora",
+            18,
+            INK,
+            True,
+        ).pack(anchor="w")
+
+        self.label(
+            body,
+            "Ayuda automática local, sin servidor.",
+            9,
+            MUTED,
+        ).pack(anchor="w", pady=4)
+
+        output = tk.Text(
+            body,
+            bg="#FBFAF6",
+            fg=INK,
+            wrap="word",
+            relief="flat",
+            height=18,
+        )
+        output.pack(fill="both", expand=True)
+
+        output.insert(
+            "end",
+            "Aurora: Puedo ayudarte con saldo, transferencias, "
+            "NIP, ahorro, inversiones, comisiones, tarjetas, "
+            "alertas y servicios.\n\n",
+        )
+
+        row = self.panel(body, WHITE)
+        row.pack(fill="x", pady=8)
+
+        entry = self.entry(row)
+        entry.pack(
+            side="left",
+            fill="x",
+            expand=True,
+            padx=(0, 8),
+        )
+
+        dirty = [False]
+
         def close():
-            w.destroy()
-            if dirty[0] and self.user:self.refresh()
-        w.protocol('WM_DELETE_WINDOW',close)
+            window.destroy()
+
+            if dirty[0] and self.user:
+                self.refresh()
+
+        window.protocol("WM_DELETE_WINDOW", close)
+
         def answer():
-            q=e.get().strip();low=q.lower()
-            if not q:return
-            if 'comisión' in low or 'comision' in low:a=f'Consulta de saldo: {pesos(QUERY_FEE)}. Transferencia a una cuenta de otro banco: {pesos(EXTERNAL_FEE)}. Entre cuentas Aurora no hay comisión.'
-            elif 'saldo' in low:
-                if messagebox.askyesno('Comisión por consulta',f'Consultar tu saldo tiene una comisión de {pesos(QUERY_FEE)}. ¿Deseas continuar?',parent=w):
-                    try:bal=self.store.consult(self.user['id']);dirty[0]=True;a=f'Tu saldo es {pesos(bal)}. Se cobró la comisión de consulta de {pesos(QUERY_FEE)}.'
-                    except ValueError as ex:a='No se pudo hacer la consulta: '+str(ex)
-                else:a='Consulta cancelada. No se cobró comisión.'
-            elif 'transfer' in low:a=f'Abre Transferencias. A otro banco la comisión es de {pesos(EXTERNAL_FEE)}; entre cuentas Aurora no tiene costo.'
-            elif 'nip' in low or 'clave' in low:a='Puedes cambiar tu NIP desde Perfil y seguridad. No se aceptan NIP fáciles como 1234 y tras 3 intentos fallidos la cuenta se limita por unos minutos.'
-            elif 'ahorro' in low or 'presupuesto' in low:a='Abre Ahorro y presupuesto para editar tu meta y límite mensual.'
-            elif 'invers' in low:a='En Cuenta de inversión puedes simular un plazo con tasas ilustrativas.'
-            elif 'servicio' in low or 'agua' in low:a='Abre Pagar servicios para simular pagos de agua, TV, teléfono, internet o electricidad.'
-            elif 'tarjeta' in low:a='En Tarjetas vinculadas ves tu tarjeta de débito y puedes ligar tarjetas de crédito.'
-            elif 'alerta' in low or 'aviso' in low:a='En Alertas de movimientos ves un aviso por cada operación de tu cuenta.'
-            else:a='Prueba preguntar por saldo, transferencia, NIP, ahorro, inversión, comisiones, tarjetas o servicios.'
-            out.insert('end',f'Tú: {q}\nAurora: {a}\n\n');out.see('end');e.delete(0,'end');self.store.log(self.user['id'],'Chatbot',q[:150])
-        self.btn(row,'Enviar',answer,True).pack(side='right');e.bind('<Return>',lambda ev:answer())
+            question = entry.get().strip()
+            lower = question.lower()
+
+            if not question:
+                return
+
+            if (
+                "comisión" in lower
+                or "comision" in lower
+            ):
+                reply = (
+                    f"Consulta de saldo: {pesos(QUERY_FEE)}. "
+                    "Transferencia a una cuenta de otro banco: "
+                    f"{pesos(EXTERNAL_FEE)}. "
+                    "Entre cuentas Aurora no hay comisión."
+                )
+
+            elif "saldo" in lower:
+                if messagebox.askyesno(
+                    "Comisión por consulta",
+                    "Consultar tu saldo tiene una comisión de "
+                    f"{pesos(QUERY_FEE)}. ¿Deseas continuar?",
+                    parent=window,
+                ):
+                    try:
+                        balance = self.store.consult(
+                            self.user["id"]
+                        )
+                        dirty[0] = True
+
+                        reply = (
+                            f"Tu saldo es {pesos(balance)}. "
+                            "Se cobró la comisión de consulta de "
+                            f"{pesos(QUERY_FEE)}."
+                        )
+
+                    except ValueError as error:
+                        reply = (
+                            "No se pudo hacer la consulta: "
+                            + str(error)
+                        )
+
+                else:
+                    reply = (
+                        "Consulta cancelada. "
+                        "No se cobró comisión."
+                    )
+
+            elif "transfer" in lower:
+                reply = (
+                    "Abre Transferencias. A otro banco "
+                    f"la comisión es de {pesos(EXTERNAL_FEE)}; "
+                    "entre cuentas Aurora no tiene costo."
+                )
+
+            elif "nip" in lower or "clave" in lower:
+                reply = (
+                    "Puedes cambiar tu NIP desde Perfil y seguridad. "
+                    "No se aceptan NIP fáciles como 1234 "
+                    "y tras 3 intentos fallidos la cuenta "
+                    "se limita por unos minutos."
+                )
+
+            elif (
+                "ahorro" in lower
+                or "presupuesto" in lower
+            ):
+                reply = (
+                    "Abre Ahorro y presupuesto para editar "
+                    "tu meta y límite mensual."
+                )
+
+            elif "invers" in lower:
+                reply = (
+                    "En Cuenta de inversión puedes simular "
+                    "un plazo con tasas ilustrativas."
+                )
+
+            elif "servicio" in lower or "agua" in lower:
+                reply = (
+                    "Abre Pagar servicios para simular pagos "
+                    "de agua, TV, teléfono, internet o electricidad."
+                )
+
+            elif "tarjeta" in lower:
+                reply = (
+                    "En Tarjetas vinculadas ves tu tarjeta "
+                    "de débito y puedes ligar tarjetas de crédito."
+                )
+
+            elif "alerta" in lower or "aviso" in lower:
+                reply = (
+                    "En Alertas de movimientos ves un aviso "
+                    "por cada operación de tu cuenta."
+                )
+
+            else:
+                reply = (
+                    "Prueba preguntar por saldo, transferencia, "
+                    "NIP, ahorro, inversión, comisiones, "
+                    "tarjetas o servicios."
+                )
+
+            output.insert(
+                "end",
+                f"Tú: {question}\nAurora: {reply}\n\n",
+            )
+
+            output.see("end")
+            entry.delete(0, "end")
+
+            self.store.log(
+                self.user["id"],
+                "Chatbot",
+                question[:150],
+            )
+
+        self.btn(
+            row,
+            "Enviar",
+            answer,
+            True,
+        ).pack(side="right")
+
+        entry.bind(
+            "<Return>",
+            lambda event: answer(),
+        )
+
     def logout(self):
-        if self.user:self.store.log(self.user['id'],'Cierre de sesión','Sesión cerrada')
-        self.user=None;self.login_screen()
- 
+        if self.user:
+            self.store.log(
+                self.user["id"],
+                "Cierre de sesión",
+                "Sesión cerrada",
+            )
+
+        self.user = None
+        self.login_screen()
+
+    def _ui_map(self, event):
+        widget = event.widget
+
+        try:
+            if isinstance(widget, tk.Text):
+                widget.configure(
+                    bg=FIELD,
+                    fg=INK,
+                    insertbackground=GOLD,
+                    selectbackground="#3B536A",
+                    padx=12,
+                    pady=10,
+                    font=("Segoe UI", 10),
+                )
+
+            elif isinstance(widget, tk.Checkbutton):
+                widget.configure(
+                    selectcolor=FIELD,
+                    activebackground=WHITE,
+                    activeforeground=INK,
+                    highlightthickness=0,
+                )
+
+        except tk.TclError:
+            pass
+
+    def _ui_wheel(self, event):
+        widget = event.widget
+
+        if isinstance(
+            widget,
+            (ttk.Treeview, tk.Text, tk.Listbox),
+        ):
+            return
+
+        current = widget
+
+        while current is not None:
+            canvas = getattr(
+                current,
+                "_aurora_scroll_canvas",
+                None,
+            )
+
+            if canvas is not None:
+                try:
+                    bounds = canvas.bbox("all")
+
+                    if (
+                        bounds
+                        and bounds[3] > canvas.winfo_height()
+                    ):
+                        number = getattr(
+                            event,
+                            "num",
+                            None,
+                        )
+
+                        delta = getattr(
+                            event,
+                            "delta",
+                            0,
+                        )
+
+                        direction = (
+                            -1
+                            if (
+                                number == 4
+                                or (
+                                    number != 5
+                                    and delta > 0
+                                )
+                            )
+                            else 1
+                        )
+
+                        canvas.yview_scroll(
+                            direction * 2,
+                            "units",
+                        )
+
+                except tk.TclError:
+                    pass
+
+                return
+
+            current = getattr(
+                current,
+                "master",
+                None,
+            )
+
+    def _new_wallpaper(self):
+        self.wallpaper = AuroraWallpaper(
+            self.root,
+            animated=not self._wallpaper_paused,
+        )
+
+        self.wallpaper.place(
+            x=0,
+            y=0,
+            relwidth=1,
+            relheight=1,
+        )
+
+        return self.wallpaper
+
+    def _toggle_wallpaper(self):
+        self._wallpaper_paused = (
+            not self._wallpaper_paused
+        )
+
+        self.wallpaper.set_animated(
+            not self._wallpaper_paused
+        )
+
+        if (
+            hasattr(self, "_pause_button")
+            and self._pause_button.winfo_exists()
+        ):
+            self._pause_button.configure(
+                text=(
+                    "Activar fondo"
+                    if self._wallpaper_paused
+                    else "Pausar fondo"
+                )
+            )
+
+    def _pause_control(self, canvas):
+        self._pause_button = self.btn(
+            canvas,
+            (
+                "Activar fondo"
+                if self._wallpaper_paused
+                else "Pausar fondo"
+            ),
+            self._toggle_wallpaper,
+            pady=5,
+        )
+
+        return canvas.create_window(
+            0,
+            0,
+            window=self._pause_button,
+            anchor="se",
+            tags="interface",
+        )
+
+    def _ui_scrollbody(self, parent):
+        canvas = tk.Canvas(
+            parent,
+            bg=WHITE,
+            highlightthickness=0,
+            bd=0,
+        )
+
+        scrollbar = ttk.Scrollbar(
+            parent,
+            orient="vertical",
+            command=canvas.yview,
+        )
+
+        canvas.configure(
+            yscrollcommand=scrollbar.set
+        )
+
+        scrollbar.pack(
+            side="right",
+            fill="y",
+        )
+
+        canvas.pack(
+            side="left",
+            fill="both",
+            expand=True,
+        )
+
+        body = tk.Frame(canvas, bg=WHITE)
+        body._aurora_scroll_canvas = canvas
+
+        item = canvas.create_window(
+            0,
+            0,
+            window=body,
+            anchor="nw",
+        )
+
+        body.bind(
+            "<Configure>",
+            lambda event: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            ),
+        )
+
+        canvas.bind(
+            "<Configure>",
+            lambda event: canvas.itemconfigure(
+                item,
+                width=max(1, event.width),
+            ),
+        )
+
+        return body
+
+
 def main():
-    root=tk.Tk();Aurora(root);root.mainloop()
-if __name__=='__main__':main()
+    root = tk.Tk()
+    Aurora(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
